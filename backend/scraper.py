@@ -114,10 +114,22 @@ def parse_department_html(_url_key: str, html: str) -> list[ScrapedCourse]:
     tree = HTMLParser(html)
     courses: list[ScrapedCourse] = []
 
-    name_nodes = tree.css("p.course-name")
-    desc_nodes = tree.css("p.course-descriptions")
+    pairs: list[tuple] = []
+    pending_name = None
+    for p in tree.css("p"):
+        cls = (p.attributes.get("class") or "").strip()
+        if cls == "course-name":
+            if pending_name is not None:
+                pairs.append((pending_name, None))
+            pending_name = p
+        elif cls == "course-descriptions":
+            if pending_name is not None:
+                pairs.append((pending_name, p))
+                pending_name = None
+    if pending_name is not None:
+        pairs.append((pending_name, None))
 
-    for name_node, desc_node in zip(name_nodes, desc_nodes, strict=False):
+    for name_node, desc_node in pairs:
         header = re.sub(r"\s+", " ", name_node.text(separator=" ")).strip()
         m = _COURSE_HEADER_RE.match(header)
         if not m:
@@ -127,7 +139,10 @@ def parse_department_html(_url_key: str, html: str) -> list[ScrapedCourse]:
         title = m.group("title").strip().rstrip(".")
         units = m.group("units").strip()
 
-        desc, prereq_text = _split_description_and_prereq(desc_node.html or "")
+        if desc_node is not None:
+            desc, prereq_text = _split_description_and_prereq(desc_node.html or "")
+        else:
+            desc, prereq_text = "", None
 
         courses.append(
             ScrapedCourse(
