@@ -3,29 +3,43 @@
 Visualize course prerequisites at UC San Diego. Search a course, see its upstream prereq tree and downstream unlocks. Paste your completed courses to highlight what you're eligible for next.
 
 **Live:** [https://cutesurtr.github.io/prereq-dependency/](https://cutesurtr.github.io/prereq-dependency/)
-**Stats:** 1,650 courses · 1,904 prereq edges · 99% confident parses on the MATH corpus.
+**Stats:** 2,018 courses · 3,259 prereq edges · 13 catalog pages · responsive (desktop + mobile drawer).
 
 ## Architecture
 
 ```mermaid
+%%{init: {
+  "theme": "base",
+  "themeVariables": {
+    "fontSize": "17px",
+    "fontFamily": "Inter, -apple-system, system-ui, sans-serif",
+    "primaryColor": "#e0e7ff",
+    "primaryBorderColor": "#533afd",
+    "primaryTextColor": "#061b31",
+    "lineColor": "#533afd",
+    "tertiaryColor": "#f6f9fc",
+    "tertiaryBorderColor": "#b9b9f9"
+  },
+  "flowchart": { "nodeSpacing": 45, "rankSpacing": 55, "curve": "basis" }
+}}%%
 flowchart LR
-    Catalog["catalog.ucsd.edu"] -->|httpx + 1 req/sec| Scraper["Scraper<br/>(disk cache)"]
-    Scraper -->|raw_prereq_text| Parser["Rule-based parser<br/>(LLM fallback stub)"]
-    Parser -->|courses + prereq edges| DB[("SQLite<br/>(courses.db)")]
-    DB -->|export_static.py| JSON[("graph.json<br/>~1MB / 150KB gz")]
-    JSON --> FE["React + React Flow<br/>(static, GitHub Pages)"]
-    DB -.->|local dev| API["FastAPI<br/>(uvicorn backend.api:app)"]
-    User["User"] --> FE
+    Catalog(["catalog.ucsd.edu"]) -->|httpx<br/>1 req/sec| Scraper["<b>Scraper</b><br/>disk cache"]
+    Scraper -->|raw prereq text| Parser["<b>Parser</b><br/>rule-based<br/>(LLM fallback stub)"]
+    Parser -->|courses + edges| DB[("<b>SQLite</b><br/>courses.db")]
+    DB -->|export_static.py| JSON[("<b>graph.json</b><br/>~1.3 MB · 260 KB gz")]
+    JSON --> FE["<b>React + React Flow</b><br/>static · GitHub Pages"]
+    DB -.->|local dev| API["<b>FastAPI</b><br/>uvicorn backend.api:app"]
+    User((User)) --> FE
 ```
 
 ## Stack
 
-- **Backend:** Python 3.11, FastAPI, SQLAlchemy, SQLite. The full DB is dumped to `frontend/public/graph.json` at build time so the deployed app is **pure static** (no serverless cold starts, no DB to provision). The FastAPI API still runs locally for dev / future iteration.
+- **Backend:** Python 3.11, FastAPI, SQLAlchemy, SQLite. The full DB is dumped to `frontend/public/graph.json` at build time so the deployed app is **pure static** (no serverless cold starts, no DB to provision). FastAPI still runs locally for dev / future iteration.
 - **Scraper:** `httpx` + `selectolax`, polite 1 req/sec rate limit, on-disk HTML cache.
-- **Parser:** Hand-rolled prereq parser; ambiguous strings flagged for LLM fallback (stub interface — wire up an Anthropic key later).
-- **Frontend:** Vite + React + TypeScript, [React Flow](https://reactflow.dev) for the graph.
-- **Deploy:** Vercel (static).
-- **CI:** GitHub Actions — `ruff`, `mypy`, `pytest`, `tsc`.
+- **Parser:** Hand-rolled, ~63 unit tests; ambiguous strings flagged for LLM fallback (stub interface — wire up an Anthropic key later).
+- **Frontend:** Vite + React + TypeScript, [React Flow](https://reactflow.dev) for the graph. Stripe-inspired palette (Inter + JetBrains Mono, navy/purple, blue-tinted shadows). Responsive: desktop two-column, mobile slide-down drawer.
+- **Deploy:** GitHub Pages (Vercel config available too).
+- **CI:** GitHub Actions — `ruff`, `mypy`, `pytest`, `tsc`, Playwright e2e.
 
 ## Local development
 
@@ -83,15 +97,15 @@ git push
 
 [vercel.json](vercel.json) is also wired up. `vercel link` once, then `git push` — Vercel will pick up changes to `frontend/`, `data/`, `backend/export_static.py`, or `vercel.json` (others are skipped via `ignoreCommand`).
 
-The deploy is **pure static** (no serverless functions, no database). All ~1,650 courses + 1,900 prereq edges fit in ~1MB of JSON (~150KB gzipped) and load in one fetch.
+The deploy is **pure static** (no serverless functions, no database). All ~2,018 courses + ~3,259 prereq edges fit in ~1.3 MB of JSON (~260 KB gzipped) and load in one fetch.
 
 ## Scope
 
-Catalog pages currently scraped: MATH, PHYS, CHEM, BIOL (covers BIBC / BICD / BIEB / BILD / BIMM / BIPN / BISP), CSE, ECE, MAE, BENG, NANO, SE, ECON, DSC.
+Catalog pages currently scraped: MATH, PHYS, CHEM, BIOL (covers BIBC / BICD / BIEB / BILD / BIMM / BIPN / BISP), CSE, ECE, MAE, BENG, NANO, SE, ECON, DSC, COGS.
 
 Adding another department is a one-line addition in [`SCRAPED_CATALOGS`](backend/scraper.py).
 
-Cross-department prereqs are handled naturally — a BICD course requiring CHEM 7L resolves correctly because the prereq edge is keyed by course code, not department.
+Cross-department prereqs are handled naturally — a BICD course requiring CHEM 7L resolves correctly because the prereq edge is keyed by course code, not department. MAE 20A's PHYS prereqs unlock physics paths; CSE 100's MATH alternatives all resolve.
 
 ## Parsing strategy
 
@@ -101,21 +115,24 @@ UCSD prereq prose is messier than it looks. The parser is rule-based and runs in
    - `Recommended preparation:` → `RECOMMENDED` (non-blocking)
    - `Corequisite:` / `Concurrent enrollment in` → `COREQ`
    - default → `PREREQ`
-2. **Strip non-blocking notes** (`consent of instructor`, `dept approval`, `Students who have not completed listed prerequisites may enroll…`) into a separate `notes` field.
-3. **Drop non-course atoms**: `Math Placement Exam qualifying score`, `AP Calculus AB score of 3, 4, or 5`, `with a grade of C– or better`, `(or equivalent)`. The AP / score patterns are written to consume the full comma chain (`score of 3, 4, or 5` is one drop, not three) so leftover loose numbers don't pollute downstream parsing.
-4. **Make implicit groupings explicit**: `either A or B or C` → `(A or B or C)`; slash syntax `EDS 30/MATH 95` → `(EDS 30 or MATH 95)`. This way the existing AND/OR precedence rules give the right answer.
+2. **Normalize course code casing and leading zeros** — `Math 20D` → `MATH 20D`, `MAE 08` → `MAE 8`. The catalog is inconsistent: MAE zero-pads single-digit course numbers in its course-name listing (`MAE 08`) but uses the unpadded form (`MAE 8`) in prereq prose. Without this step, the loader drops every reference to those courses as "unknown".
+3. **Strip non-blocking notes** (`consent of instructor`, `dept approval`, `Students who have not completed listed prerequisites may enroll…`, `Students may not receive credit for X and Y`, `Renumbered from X`) into a separate `notes` field.
+4. **Drop non-course atoms**: `Math Placement Exam qualifying score`, `AP Calculus AB score of 3, 4, or 5`, `with a grade of C– or better`, `(or equivalent)`. The AP / score patterns are written to consume the full comma chain (`score of 3, 4, or 5` is one drop, not three) so leftover loose numbers don't pollute downstream parsing.
 5. **Expand bare course numbers**: `MATH 20A, 20B, and 20C` → `MATH 20A, MATH 20B, MATH 20C`.
-6. **Tokenize** to `COURSE | AND | OR | LPAREN | RPAREN | COMMA`. Course codes are case-insensitive (some prereq strings use `Math 20D`).
-7. **Resolve commas**:
+6. **Make implicit groupings explicit**:
+   - `either A or B or C` → `(A or B or C)`
+   - `EDS 30/MATH 95` → `(EDS 30 or MATH 95)`
+   - `PHYS 4A-B-C` → `PHYS 4A and PHYS 4B and PHYS 4C` (catalog series shorthand)
+   - `X and Y or Z [or W ...]` at clause end → `X and (Y or Z [or W ...])` (catalog convention; AND binds looser than the alternatives chain — strict precedence would let a student satisfy with `Z` alone)
+   - `X or Y or Z and W` at clause start (3+ courses in OR chain) → `(X or Y or Z) and W` (mirror of the previous heuristic for leading OR-chains)
+7. **Tokenize** to `COURSE | AND | OR | LPAREN | RPAREN | COMMA`.
+8. **Resolve commas**:
    - `, and` / `, or` → elevate to `TOP_AND` / `TOP_OR` (binds *looser* than regular AND/OR — captures comma-elevated scope)
-   - bare `,` in a list → adopt the kind of the next conjunction
-8. **Recursive-descent parse** to an AST with three precedence levels (TOP_*, OR, AND), and **DNF-expand** to a list of `frozenset`s. Each `frozenset` becomes one `group_id` in the DB; AND within, OR across.
+   - bare `,` between two OR-clauses (parallel-OR pattern) → `TOP_AND` (so `MATH 18 or MATH 31AH, MATH 20C or MATH 31BH` reads as `(18|31AH) and (20C|31BH)`)
+   - bare `,` in a regular list → adopt the kind of the next conjunction
+9. **Recursive-descent parse** to an AST with three precedence levels (TOP_*, OR, AND), and **DNF-expand** to a list of `frozenset`s. Each `frozenset` becomes one `group_id` in the DB; AND within, OR across.
 
-This is the case where TOP-level scope matters — without it, this string parses wrong:
-
-> `MATH 18 or MATH 20F or MATH 31AH, and MATH 20C.`
-
-Standard precedence (AND tighter than OR) would give `MATH 18 OR MATH 20F OR (MATH 31AH AND MATH 20C)`. The English clearly means `(18 or 20F or 31AH) and 20C`. The `, and` is the signal — comma-elevated AND binds looser, so the grouping resolves correctly.
+The loader applies one more invariant: a group containing the course as its own prereq, or a course that doesn't exist in our scraped data, is dropped *as a whole* (not just the offending edge). Dropping a single edge from an AND group leaves a strict subset that's too easy to satisfy — e.g., `(MAE 101A or CENG 101A) AND (MAE 11 or MAE 110A or CENG 102)` would otherwise produce a group `{MAE 11}` alone, which contradicts the original intent.
 
 | Pattern | Example | Result |
 |---|---|---|
@@ -125,8 +142,13 @@ Standard precedence (AND tighter than OR) would give `MATH 18 OR MATH 20F OR (MA
 | Oxford list | `MATH 20A, 20B, and 20C` | one group `{20A, 20B, 20C}` |
 | Mixed paren | `MATH 20A and (MATH 20B or MATH 10B)` | `{20A, 20B}, {20A, 10B}` |
 | Comma-scope | `MATH 18 or MATH 20F or MATH 31AH, and MATH 20C` | `{18,20C}, {20F,20C}, {31AH,20C}` |
+| Trailing OR-chain | `PHYS 2A and MATH 31BH or MATH 20C` | `{PHYS 2A, MATH 31BH}, {PHYS 2A, MATH 20C}` |
+| Leading OR-chain | `CSE 21 or MATH 154 or MATH 188 and CSE 12` | `{CSE 21, CSE 12}, {MATH 154, CSE 12}, {MATH 188, CSE 12}` |
+| Parallel-OR comma | `MATH 18 or MATH 31AH, MATH 20C or MATH 31BH` | `{18,20C}, {18,31BH}, {31AH,20C}, {31AH,31BH}` |
+| Hyphen series | `PHYS 4A-B` | `{PHYS 4A, PHYS 4B}` |
 | Slash | `EDS 30/MATH 95` | `{EDS 30}, {MATH 95}` |
 | `either` | `either MATH 20F or MATH 31AH` | `{20F}, {31AH}` |
+| Leading-zero | `MAE 08, MAE 09, MAE 11` | `{MAE 8, MAE 9, MAE 11}` |
 | `or equivalent` | `MATH 20A or equivalent` | `{20A}` |
 | Grade qualifier | `MATH 20B with a grade of C– or better` | `{20B}` |
 | AP score | `AP Calculus BC score of 4 or 5, or MATH 20B` | `{20B}` |
@@ -134,8 +156,11 @@ Standard precedence (AND tighter than OR) would give `MATH 18 OR MATH 20F OR (MA
 | Corequisite | `Corequisite: PHYS 2A` | one COREQ group |
 | Recommended | `Recommended preparation: MATH 20A and MATH 20B` | one RECOMMENDED group |
 | Consent | `…with consent of instructor.` | `notes="consent of instructor"` |
+| Duplicate-credit | `Students may not receive credit for both CSE 100R and CSE 100.` | dropped (not a prereq) |
 
-**Confidence flag.** Parser sets `confident=False` when the set of course codes it extracted differs from what the regex finds in the cleaned body — the typical cause is a truly ambiguous string like `MATH 18 or MATH 20F or MATH 31AH and MATH 20C (or MATH 21C) or MATH 31BH` where operator precedence is genuinely unclear from the prose alone. Unconfident strings are stored as `raw_prereq_text` and surfaced in the UI; on the MATH corpus 99% of strings (194/196 with prereq prose) parse confidently. The unparseable ones are queued for the (currently stubbed) Haiku fallback in `backend/llm_fallback.py`.
+**Confidence flag.** Parser sets `confident=False` when the set of course codes it extracted differs from what the regex finds in the cleaned body — the typical cause is a truly ambiguous string like `MATH 18 or MATH 20F or MATH 31AH and MATH 20C (or MATH 21C) or MATH 31BH` where operator precedence is genuinely unclear from the prose alone. Unconfident strings are stored as `raw_prereq_text` and surfaced in the UI. The unparseable ones are queued for the (currently stubbed) Haiku fallback in `backend/llm_fallback.py`.
+
+**Catalog HTML quirks.** The `Prerequisites:` marker appears in three different `<strong>`/`<em>` nestings across the live site (`<strong class="italic"><em>...`, `<strong><em><em>...`, `<em><strong>...`). The scraper regex tolerates any combination, recovering ~1,100 edges that were previously dropped. Course titles wrapped in `<span>` (like `MAE 30A. <span>Statics</span> (4)`) are extracted with a space separator so the header regex still matches.
 
 ## Data model
 
