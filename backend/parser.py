@@ -129,6 +129,42 @@ def _strip_notes(text: str) -> tuple[str, str]:
     return text, "; ".join(notes)
 
 
+_DESC_NOTE_PATTERNS: tuple[tuple[re.Pattern[str], str], ...] = (
+    (re.compile(r"Credit not offered[^.]*\.", re.I), "credit"),
+    (re.compile(r"Students may not receive credit[^.]*\.", re.I), "credit"),
+    (
+        re.compile(
+            r"May not be (?:taken|received) for credit (?:after|if|with)[^.]*\.", re.I
+        ),
+        "credit",
+    ),
+    (
+        re.compile(
+            r"If [A-Z]{2,5}\s*\d+[A-Z]?\s+and\s+[A-Z]{2,5}\s*\d+[A-Z]?\s+are concurrently taken[^.]*\.",
+            re.I,
+        ),
+        "credit",
+    ),
+    (re.compile(r"\bRenumbered from[^.]*\.", re.I), "renumbered"),
+    (re.compile(r"\b(?:Formerly|Previously) numbered[^.]*\.", re.I), "renumbered"),
+    (re.compile(r"\bCross-listed with[^.]*\.", re.I), "cross-listed"),
+)
+
+
+def extract_description_notes(description: str | None) -> list[str]:
+    if not description:
+        return []
+    found: list[str] = []
+    seen: set[str] = set()
+    for pat, _label in _DESC_NOTE_PATTERNS:
+        for m in pat.finditer(description):
+            sentence = re.sub(r"\s+", " ", m.group(0)).strip().rstrip(".")
+            if sentence not in seen:
+                seen.add(sentence)
+                found.append(sentence)
+    return found
+
+
 def _strip_drops(text: str) -> str:
     for pat in _DROP_PATTERNS:
         text = pat.sub("", text)

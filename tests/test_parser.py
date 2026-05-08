@@ -366,6 +366,37 @@ def test_leading_or_chain_wraps_when_followed_by_and() -> None:
         assert any(c in g for c in ("CSE 15L", "CSE 29", "ECE 15"))
 
 
+def test_extract_description_notes_concurrent() -> None:
+    from backend.parser import extract_description_notes
+    desc = (
+        "Basic concepts in graph theory. Credit not offered for MATH 154 if MATH 158 is "
+        "previously taken. If MATH 154 and MATH 158 are concurrently taken, credit is only "
+        "offered for MATH 158."
+    )
+    notes = extract_description_notes(desc)
+    assert any("Credit not offered" in n for n in notes)
+    assert any("concurrently taken" in n for n in notes)
+
+
+def test_extract_description_notes_renumbered() -> None:
+    from backend.parser import extract_description_notes
+    notes = extract_description_notes("Course content. Renumbered from BIMM 171A.")
+    assert any("Renumbered from" in n for n in notes)
+
+
+def test_extract_description_notes_cross_listed() -> None:
+    from backend.parser import extract_description_notes
+    notes = extract_description_notes("Course content. Cross-listed with SIO 134.")
+    assert any("Cross-listed" in n for n in notes)
+
+
+def test_extract_description_notes_empty() -> None:
+    from backend.parser import extract_description_notes
+    assert extract_description_notes(None) == []
+    assert extract_description_notes("") == []
+    assert extract_description_notes("Just a normal description, nothing notable.") == []
+
+
 def test_major_code_restrictions_not_treated_as_courses() -> None:
     r = parse(
         "MAE 11 and MAE 30A. Enrollment restricted to BE 25, MC 25, MC 27, MC 29 majors only."

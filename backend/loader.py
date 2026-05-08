@@ -9,7 +9,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 
 from backend.models import Base, Course, Prereq, PrereqType
-from backend.parser import PrereqKind, parse
+from backend.parser import PrereqKind, extract_description_notes, parse
 
 RAW_DIR = Path(__file__).parent.parent / "data" / "raw"
 DB_PATH = Path(__file__).parent / "data" / "courses.db"
@@ -42,6 +42,7 @@ def load_into(db_path: Path = DB_PATH) -> dict[str, int]:
     with Session(engine) as session:
         for c in all_courses:
             stats["courses_total"] += 1
+            desc_notes = extract_description_notes(c.get("description"))
             session.add(
                 Course(
                     code=c["code"],
@@ -50,9 +51,11 @@ def load_into(db_path: Path = DB_PATH) -> dict[str, int]:
                     units=c.get("units"),
                     description=c.get("description"),
                     raw_prereq_text=c.get("raw_prereq_text"),
-                    notes=None,
+                    notes="; ".join(desc_notes) if desc_notes else None,
                 )
             )
+            if desc_notes:
+                stats["desc_notes_extracted"] += 1
         session.commit()
 
         for c in all_courses:
@@ -64,7 +67,9 @@ def load_into(db_path: Path = DB_PATH) -> dict[str, int]:
             course = session.get(Course, c["code"])
             assert course is not None
             if result.notes:
-                course.notes = result.notes
+                course.notes = (
+                    f"{course.notes}; {result.notes}" if course.notes else result.notes
+                )
 
             if not result.groups:
                 if result.confident:
