@@ -42,7 +42,12 @@ _COURSE_CODE_RE = re.compile(r"\b([A-Z]{2,5})\s+(\d+[A-Z]{0,3})\b")
 _BARE_NUMBER_RE = re.compile(r"(?<![A-Za-z])(\d+[A-Z]{0,3})\b")
 _COURSE_CODE_RE_LOOSE = re.compile(r"\b([A-Z]{2,5})\s+(\d+[A-Z]{0,3})\b", re.I)
 _NON_DEPT_WORDS: frozenset[str] = frozenset(
-    {"AND", "OR", "EITHER", "WITH", "FROM", "THE", "NOT", "MAY"}
+    {
+        "AND", "OR", "EITHER", "WITH", "FROM", "THE", "NOT", "MAY",
+        "MC", "BE", "OF", "LEAST", "GRADE", "SCORE",
+        "IN", "IS", "TO", "BY", "ON", "AT", "AS", "AN", "FOR", "BUT",
+        "ARE", "EARN", "ONLY", "ALL", "CAN", "THIS", "THAT", "HAVE",
+    }
 )
 
 _NOTE_PATTERNS: tuple[tuple[re.Pattern[str], str], ...] = (

@@ -39,3 +39,7 @@ jobs:
       - run: npm ci
       - run: npx tsc --noEmit
       - run: npm run build
+      - name: Install Playwright browser
+        run: npx playwright install --with-deps chromium
+      - name: Playwright smoke
+        run: npx playwright test

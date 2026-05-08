@@ -366,6 +366,18 @@ def test_leading_or_chain_wraps_when_followed_by_and() -> None:
         assert any(c in g for c in ("CSE 15L", "CSE 29", "ECE 15"))
 
 
+def test_major_code_restrictions_not_treated_as_courses() -> None:
+    r = parse(
+        "MAE 11 and MAE 30A. Enrollment restricted to BE 25, MC 25, MC 27, MC 29 majors only."
+    )
+    assert r.groups == [G("MAE 11", "MAE 30A")]
+
+
+def test_gpa_clause_not_treated_as_course() -> None:
+    r = parse("MATH 20A and a UC San Diego GPA of 3.0 or higher.")
+    assert r.groups == [G("MATH 20A")]
+
+
 def test_known_limit_mixed_top_level_left_associative() -> None:
     r = parse("MATH 20A, and MATH 20B, or MATH 20C, and MATH 20D")
     assert sorted(r.groups) == sorted(
