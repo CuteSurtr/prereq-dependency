@@ -27,18 +27,14 @@ USER_AGENT = (
     "(educational; contact 133225877+CuteSurtr@users.noreply.github.com)"
 )
 
-# Tier 1: Math, Physics, Chem, Bio Sciences, CSE, Jacobs (ECE, MAE, BENG, NANO, SE).
-# UCSD Biological Sciences is split across many subject codes; include the major ones.
-TIER_1_DEPARTMENTS: tuple[str, ...] = (
+# Tier 1 catalog URL keys. UCSD lumps all bio subject codes (BILD, BIBC, BICD,
+# BIEB, BIMM, BIPN) onto BIOL.html — the per-course subject is recovered from
+# each course code (e.g. "BICD 100" -> department="BICD").
+TIER_1_URL_KEYS: tuple[str, ...] = (
     "MATH",
     "PHYS",
     "CHEM",
-    "BILD",  # Bio: foundational
-    "BIBC",  # Bio: biochem
-    "BICD",  # Bio: cell/dev
-    "BIEB",  # Bio: ecol/behavior
-    "BIMM",  # Bio: molecular
-    "BIPN",  # Bio: physiology/neuro
+    "BIOL",  # contains BILD/BIBC/BICD/BIEB/BIMM/BIPN
     "CSE",
     "ECE",
     "MAE",
@@ -46,6 +42,8 @@ TIER_1_DEPARTMENTS: tuple[str, ...] = (
     "NANO",  # NanoEngineering
     "SE",    # Structural Engineering
 )
+# Backward-compat alias.
+TIER_1_DEPARTMENTS = TIER_1_URL_KEYS
 
 
 @dataclass
@@ -129,24 +127,22 @@ def _split_description_and_prereq(html_inner: str) -> tuple[str, str | None]:
     return _strip_html(desc), _strip_html(prereq) or None
 
 
-def parse_department_html(department: str, html: str) -> list[ScrapedCourse]:
+def parse_department_html(_url_key: str, html: str) -> list[ScrapedCourse]:
     tree = HTMLParser(html)
     courses: list[ScrapedCourse] = []
 
     name_nodes = tree.css("p.course-name")
     desc_nodes = tree.css("p.course-descriptions")
-    # Description nodes line up 1:1 with name nodes in document order on this catalog.
-    if len(name_nodes) != len(desc_nodes):
-        # Be lenient: zip to the shorter; surface the count mismatch in raw json for debugging.
-        pass
 
     for name_node, desc_node in zip(name_nodes, desc_nodes, strict=False):
         header = name_node.text(strip=True)
         m = _COURSE_HEADER_RE.match(header)
         if not m:
-            # Skip unparseable header rather than crash.
             continue
         code = re.sub(r"\s+", " ", m.group("code")).strip().upper()
+        # Subject code lives at the front of the course code, not the URL key
+        # (the BIOL.html page contains BILD/BIBC/BICD/BIEB/BIMM/BIPN courses).
+        subject = code.split()[0]
         title = m.group("title").strip().rstrip(".")
         units = m.group("units").strip()
 
@@ -155,7 +151,7 @@ def parse_department_html(department: str, html: str) -> list[ScrapedCourse]:
         courses.append(
             ScrapedCourse(
                 code=code,
-                department=department,
+                department=subject,
                 title=title,
                 units=units,
                 description=desc,
@@ -186,7 +182,13 @@ def scrape_many(departments: list[str], *, force: bool = False, sleep: float = 1
     ) as client:
         for i, dept in enumerate(departments):
             cache_hit = _cache_path(dept).exists() and not force
-            html = fetch(dept, force=force, client=client)
+            try:
+                html = fetch(dept, force=force, client=client)
+            except httpx.HTTPStatusError as e:
+                print(f"  {dept:>5}: SKIP ({e.response.status_code})")
+                if not cache_hit and i < len(departments) - 1:
+                    time.sleep(sleep)
+                continue
             courses = parse_department_html(dept, html)
             RAW_DIR.mkdir(parents=True, exist_ok=True)
             _raw_path(dept).write_text(
@@ -195,7 +197,6 @@ def scrape_many(departments: list[str], *, force: bool = False, sleep: float = 1
             )
             total += len(courses)
             print(f"  {dept:>5}: {len(courses):>4} courses ({'cached' if cache_hit else 'fetched'})")
-            # Rate limit only when we made a network call AND there's another to make.
             if not cache_hit and i < len(departments) - 1:
                 time.sleep(sleep)
     return total

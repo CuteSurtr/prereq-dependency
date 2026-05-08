@@ -18,12 +18,12 @@ flowchart LR
 
 ## Stack
 
-- **Backend:** Python 3.11, FastAPI, SQLAlchemy, SQLite (read-only at deploy time, bundled with the serverless function)
-- **Scraper:** `httpx` + `selectolax`, polite 1 req/sec rate limit, on-disk HTML cache
-- **Parser:** Hand-rolled prereq parser; ambiguous strings flagged for LLM fallback (stub interface — wire up an Anthropic key later)
-- **Frontend:** Vite + React + TypeScript, [React Flow](https://reactflow.dev) for the graph
-- **Deploy:** Vercel (static frontend + Python serverless API)
-- **CI:** GitHub Actions — `ruff`, `mypy`, `pytest`, `tsc`
+- **Backend:** Python 3.11, FastAPI, SQLAlchemy, SQLite. The full DB is dumped to `frontend/public/graph.json` at build time so the deployed app is **pure static** (no serverless cold starts, no DB to provision). The FastAPI API still runs locally for dev / future iteration.
+- **Scraper:** `httpx` + `selectolax`, polite 1 req/sec rate limit, on-disk HTML cache.
+- **Parser:** Hand-rolled prereq parser; ambiguous strings flagged for LLM fallback (stub interface — wire up an Anthropic key later).
+- **Frontend:** Vite + React + TypeScript, [React Flow](https://reactflow.dev) for the graph.
+- **Deploy:** Vercel (static).
+- **CI:** GitHub Actions — `ruff`, `mypy`, `pytest`, `tsc`.
 
 ## Local development
 
@@ -33,11 +33,13 @@ flowchart LR
 python3.11 -m venv .venv
 source .venv/bin/activate
 pip install -e ".[dev]"
-# scrape one department
-python -m backend.scraper MATH
-# build the local SQLite DB from cached HTML
+# scrape (defaults to all Tier 1 majors; cached after first run)
+python -m backend.scraper
+# build the local SQLite DB from scraped JSON
 python -m backend.loader
-# run the API
+# export DB to the static JSON the frontend reads
+python -m backend.export_static
+# (optional) run the FastAPI server locally
 uvicorn backend.api:app --reload
 ```
 
@@ -61,10 +63,11 @@ cd frontend && npm run test:e2e   # Playwright smoke
 
 ### Vercel
 
-1. `vercel link` (one-time)
-2. `vercel --prod`
+1. `vercel link` (one-time, point at this repo).
+2. Refresh data when needed: `python -m backend.scraper && python -m backend.loader && python -m backend.export_static`. This regenerates `frontend/public/graph.json`.
+3. `git push` — Vercel auto-deploys.
 
-The build command is configured in `vercel.json`. The SQLite DB is committed under `backend/data/courses.db` so the serverless function has read access to it at runtime — re-scrape locally and re-deploy to refresh.
+The build is configured in [vercel.json](vercel.json): `cd frontend && npm ci && npm run build`. The deploy is **pure static** (no serverless functions, no database). All ~1650 courses + 1900 prereq edges fit in ~1MB of JSON (~150KB gzipped) and load in one fetch.
 
 ## Scope (Tier 1 majors only for v1)
 
