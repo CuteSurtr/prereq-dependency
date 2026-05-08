@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Graph } from "./Graph";
 import { loadGraph } from "./data";
 import type { GraphData } from "./types";
@@ -62,7 +62,6 @@ const styles = {
     padding: "8px 12px",
     border: "none",
     background: "transparent",
-    borderBottom: "1px solid var(--color-border)",
     fontSize: 12,
     color: "var(--color-label)",
     transition: "background 100ms ease",
@@ -162,20 +161,39 @@ const labelStyle: React.CSSProperties = {
   textTransform: "uppercase",
 };
 
+const DEFAULT_FOCUS = "CSE 110";
+
 export default function App() {
   const [graph, setGraph] = useState<GraphData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
-  const [focus, setFocus] = useState<string>("CSE 110");
+  const [focus, setFocus] = useState<string>(DEFAULT_FOCUS);
   const [completedRaw, setCompletedRaw] = useState("");
 
   useEffect(() => {
     loadGraph()
-      .then(setGraph)
+      .then((g) => {
+        setGraph(g);
+        // Fall back gracefully if the hardcoded default is gone from the data.
+        setFocus((current) =>
+          g.courses[current]
+            ? current
+            : Object.keys(g.courses).sort()[0] ?? current,
+        );
+      })
       .catch((e) => setError(String(e)));
   }, []);
 
-  const completed = useMemo(() => new Set(parseCompletedList(completedRaw)), [completedRaw]);
+  // Stable Set: only mint a new instance when the parsed code list actually changes.
+  // This keeps the Graph's useMemo from invalidating on every keystroke.
+  const completedKey = useMemo(
+    () => parseCompletedList(completedRaw).sort().join(","),
+    [completedRaw],
+  );
+  const completed = useMemo(
+    () => new Set(completedKey ? completedKey.split(",") : []),
+    [completedKey],
+  );
 
   const searchResults = useMemo(() => {
     if (!graph || query.trim().length < 2) return [];
@@ -184,6 +202,13 @@ export default function App() {
       .filter((c) => c.code.includes(q) || c.title.toUpperCase().includes(q))
       .slice(0, 30);
   }, [graph, query]);
+
+  const onSelectCourse = useCallback(
+    (code: string) => {
+      if (graph?.courses[code]) setFocus(code);
+    },
+    [graph],
+  );
 
   const focusCourse = graph?.courses[focus];
 
@@ -213,8 +238,8 @@ export default function App() {
           UCSD <span style={styles.brandPurple}>Prereq Graph</span>
         </h1>
         <p style={styles.intro}>
-          {courseCount.toLocaleString()} courses across Tier 1 majors. Search a course to see its
-          upstream prereqs and downstream unlocks.
+          {courseCount.toLocaleString()} courses across UCSD. Search a course to see its upstream
+          prereqs and downstream unlocks.
         </p>
 
         <div style={styles.field}>
@@ -229,25 +254,20 @@ export default function App() {
             placeholder='e.g. "MATH 20A" or "neural"'
           />
           {searchResults.length > 0 && (
-            <ul data-testid="search-results" style={styles.searchResults} className="scroll-y">
-              {searchResults.map((c, i) => (
+            <ul
+              data-testid="search-results"
+              style={styles.searchResults}
+              className="scroll-y search-results"
+            >
+              {searchResults.map((c) => (
                 <li key={c.code}>
                   <button
+                    className="search-result-btn"
                     onClick={() => {
                       setFocus(c.code);
                       setQuery("");
                     }}
-                    style={{
-                      ...styles.searchResultButton,
-                      borderBottom:
-                        i === searchResults.length - 1
-                          ? "none"
-                          : styles.searchResultButton.borderBottom,
-                    }}
-                    onMouseEnter={(e) =>
-                      (e.currentTarget.style.background = "var(--color-purple-tint)")
-                    }
-                    onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                    style={styles.searchResultButton}
                   >
                     <span
                       style={{
@@ -374,9 +394,7 @@ export default function App() {
           graph={graph}
           focusCode={focus}
           completed={completed}
-          onSelectCourse={(code) => {
-            if (graph.courses[code]) setFocus(code);
-          }}
+          onSelectCourse={onSelectCourse}
         />
       </main>
     </div>

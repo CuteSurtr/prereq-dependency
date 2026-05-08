@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import ReactFlow, {
   Background,
   BackgroundVariant,
@@ -6,6 +6,8 @@ import ReactFlow, {
   Handle,
   MarkerType,
   Position,
+  ReactFlowProvider,
+  useReactFlow,
   type Edge,
   type Node,
   type NodeProps,
@@ -162,10 +164,22 @@ export type GraphProps = {
   onSelectCourse: (code: string) => void;
 };
 
-export function Graph({ graph, focusCode, completed, onSelectCourse }: GraphProps) {
-  const { nodes, edges } = useMemo(() => {
+const UNLOCK_CAP = 12;
+
+function GraphInner({ graph, focusCode, completed, onSelectCourse }: GraphProps) {
+  const reactFlow = useReactFlow();
+
+  // Re-fit the viewport whenever the focus changes. ReactFlow's `fitView` prop is
+  // initial-only, so without this an off-screen new prereq tree silently lurks.
+  useEffect(() => {
+    // Wait one tick for nodes to render before fitting.
+    const t = setTimeout(() => reactFlow.fitView({ padding: 0.2, duration: 250 }), 50);
+    return () => clearTimeout(t);
+  }, [focusCode, reactFlow]);
+
+  const { nodes, edges, hiddenUnlockCount } = useMemo(() => {
     const focus = graph.courses[focusCode];
-    if (!focus) return { nodes: [], edges: [] };
+    if (!focus) return { nodes: [], edges: [], hiddenUnlockCount: 0 };
 
     const prereqGroups = focus.prereq_groups;
     const flatPrereqs: string[] = [];
@@ -179,7 +193,9 @@ export function Graph({ graph, focusCode, completed, onSelectCourse }: GraphProp
         groupOfPrereq[c].push(gi);
       });
     });
-    const unlocks = (graph.unlocks[focusCode] ?? []).slice(0, 12);
+    const allUnlocks = graph.unlocks[focusCode] ?? [];
+    const unlocks = allUnlocks.slice(0, UNLOCK_CAP);
+    const hiddenUnlockCount = Math.max(0, allUnlocks.length - unlocks.length);
 
     const nodes: Node<CourseNodeData>[] = [];
     const edges: Edge[] = [];
@@ -286,7 +302,7 @@ export function Graph({ graph, focusCode, completed, onSelectCourse }: GraphProp
       });
     });
 
-    return { nodes, edges };
+    return { nodes, edges, hiddenUnlockCount };
   }, [graph, focusCode, completed, onSelectCourse]);
 
   return (
@@ -307,6 +323,36 @@ export function Graph({ graph, focusCode, completed, onSelectCourse }: GraphProp
         color={COLORS.purpleSoft}
       />
       <Controls showInteractive={false} />
+      {hiddenUnlockCount > 0 && (
+        <div
+          style={{
+            position: "absolute",
+            top: 12,
+            right: 16,
+            padding: "4px 10px",
+            background: "#ffffff",
+            border: `1px solid ${COLORS.border}`,
+            borderRadius: 4,
+            boxShadow: "rgba(23,23,23,0.06) 0px 3px 6px",
+            fontSize: 11,
+            color: COLORS.label,
+            fontVariantNumeric: "tabular-nums",
+            zIndex: 5,
+          }}
+          aria-label={`${hiddenUnlockCount} more unlocked courses not shown`}
+        >
+          +{hiddenUnlockCount} more unlocks not shown
+        </div>
+      )}
     </ReactFlow>
+  );
+}
+
+export function Graph(props: GraphProps) {
+  // Provider is required for `useReactFlow` to work inside GraphInner.
+  return (
+    <ReactFlowProvider>
+      <GraphInner {...props} />
+    </ReactFlowProvider>
   );
 }

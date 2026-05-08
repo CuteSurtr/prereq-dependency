@@ -5,7 +5,7 @@ test("loads the app and navigates to a course via search", async ({ page }) => {
 
   // Title and graph data load
   await expect(page.getByRole("heading", { name: /UCSD Prereq Graph/ })).toBeVisible();
-  await expect(page.getByText(/courses across Tier 1 majors/)).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByText(/courses across UCSD/)).toBeVisible({ timeout: 10_000 });
 
   // Default focus is CSE 110 — its sidebar header should be visible.
   await expect(page.getByText("Software Engineering").first()).toBeVisible();

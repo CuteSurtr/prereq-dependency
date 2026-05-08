@@ -231,3 +231,14 @@ textarea:focus {
 .scroll-y::-webkit-scrollbar-track {
   background: transparent;
 }
+
+/* Search result list separators — last item has no border. */
+.search-result-btn {
+  border-bottom: 1px solid var(--color-border);
+}
+.search-results li:last-child .search-result-btn {
+  border-bottom: none;
+}
+.search-result-btn:hover {
+  background: var(--color-purple-tint);
+}

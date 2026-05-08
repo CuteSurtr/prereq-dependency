@@ -6,10 +6,16 @@ export function loadGraph(): Promise<GraphData> {
   if (!cached) {
     // BASE_URL resolves to "/" in dev and "/prereq-dependency/" on GitHub Pages.
     const url = `${import.meta.env.BASE_URL}graph.json`.replace(/\/+/g, "/");
-    cached = fetch(url).then((r) => {
-      if (!r.ok) throw new Error(`Failed to load graph.json: ${r.status}`);
-      return r.json() as Promise<GraphData>;
-    });
+    cached = fetch(url)
+      .then((r) => {
+        if (!r.ok) throw new Error(`Failed to load graph.json: ${r.status}`);
+        return r.json() as Promise<GraphData>;
+      })
+      .catch((e) => {
+        // Don't poison the cache with a rejected promise — let the caller retry.
+        cached = null;
+        throw e;
+      });
   }
   return cached;
 }

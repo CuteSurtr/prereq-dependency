@@ -27,10 +27,10 @@ USER_AGENT = (
     "(educational; contact 133225877+CuteSurtr@users.noreply.github.com)"
 )
 
-# Tier 1 catalog URL keys. UCSD lumps all bio subject codes (BILD, BIBC, BICD,
-# BIEB, BIMM, BIPN) onto BIOL.html — the per-course subject is recovered from
-# each course code (e.g. "BICD 100" -> department="BICD").
-TIER_1_URL_KEYS: tuple[str, ...] = (
+# Catalog URL keys we scrape. UCSD lumps all bio subject codes (BILD, BIBC,
+# BICD, BIEB, BIMM, BIPN) onto BIOL.html — the per-course subject is recovered
+# from each course code (e.g. "BICD 100" -> department="BICD").
+SCRAPED_CATALOGS: tuple[str, ...] = (
     "MATH",
     "PHYS",
     "CHEM",
@@ -41,9 +41,9 @@ TIER_1_URL_KEYS: tuple[str, ...] = (
     "BENG",  # Bioengineering
     "NANO",  # NanoEngineering
     "SE",    # Structural Engineering
+    "ECON",  # Economics
+    "DSC",   # Data Science
 )
-# Backward-compat alias.
-TIER_1_DEPARTMENTS = TIER_1_URL_KEYS
 
 
 @dataclass
@@ -207,12 +207,12 @@ def main() -> None:
     ap.add_argument(
         "departments",
         nargs="*",
-        help="Department codes (e.g. MATH CSE). Default: all Tier 1.",
+        help="Department codes (e.g. MATH CSE). Default: all configured catalogs.",
     )
     ap.add_argument("--force", action="store_true", help="Bypass disk cache.")
     args = ap.parse_args()
 
-    depts = [d.upper() for d in args.departments] or list(TIER_1_DEPARTMENTS)
+    depts = [d.upper() for d in args.departments] or list(SCRAPED_CATALOGS)
     print(f"Scraping {len(depts)} department(s): {', '.join(depts)}")
     total = scrape_many(depts, force=args.force)
     print(f"Done. {total} courses across {len(depts)} departments.")

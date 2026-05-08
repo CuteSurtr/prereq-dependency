@@ -71,9 +71,19 @@ Node = Atom | And | Or
 # ---------- Preprocessing ---------------------------------------------------
 
 
-_COURSE_CODE_RE = re.compile(r"\b([A-Z]{2,5})\s+(\d+[A-Z]{0,3})\b", re.I)
-# Bare number like "20B" — used when expanding "MATH 20A, 20B, 20C".
-_BARE_NUMBER_RE = re.compile(r"(?<![A-Z])(\d+[A-Z]{0,3})\b", re.I)
+# Course code regex. Case-sensitive: by the time it runs, `_normalize_course_codes`
+# has uppercased every real course code in the body. Keeping it case-sensitive avoids
+# false positives like "and 20C" where a 3-letter conjunction looks like a dept code.
+_COURSE_CODE_RE = re.compile(r"\b([A-Z]{2,5})\s+(\d+[A-Z]{0,3})\b")
+_BARE_NUMBER_RE = re.compile(r"(?<![A-Za-z])(\d+[A-Z]{0,3})\b")
+
+# Loose, case-insensitive variant used only by `_normalize_course_codes` to find
+# course codes regardless of the catalog's mixed case ("Math 20D"). The callback
+# filters out matches whose "dept" is actually an English keyword.
+_COURSE_CODE_RE_LOOSE = re.compile(r"\b([A-Z]{2,5})\s+(\d+[A-Z]{0,3})\b", re.I)
+_NON_DEPT_WORDS: frozenset[str] = frozenset(
+    {"AND", "OR", "EITHER", "WITH", "FROM", "THE", "NOT", "MAY"}
+)
 
 # Notes/non-blocking phrases. Stripped to the `notes` field.
 _NOTE_PATTERNS: tuple[tuple[re.Pattern[str], str], ...] = (
@@ -118,7 +128,7 @@ _DROP_PATTERNS: tuple[re.Pattern[str], ...] = (
     re.compile(r"\bor\s+(?:its\s+)?equivalent(?:\s+experience)?\b", re.I),
     re.compile(_SCORE_LIST_RE, re.I),
     re.compile(r"\bwith a grade of[^,;.]*", re.I),
-    re.compile(r"\bgrade of [A-D][+\-–]?(?: or better)?", re.I),
+    re.compile(r"\bgrade of [a-d][+\-–]?(?: or better)?", re.I),
     # Catch any AP fragment that survives (e.g. "AP Calculus AB" without a score).
     re.compile(
         r"AP\s+(?:Calculus|Precalculus|Statistics|Physics|Chemistry|Biology)"
@@ -202,34 +212,46 @@ def _wrap_grouping_hints(text: str) -> str:
     return text
 
 
+_BARE_NUMBER_TOKENIZER = re.compile(
+    r"[A-Z]{2,5}\s+\d+[A-Z]{0,3}|\d+[A-Z]{0,3}|[^A-Z\d]+|."
+)
+
+
+def _normalize_course_codes(text: str) -> str:
+    """Uppercase the dept + number portion of every course code occurrence.
+
+    Catalog text occasionally uses 'Math 20D' (lowercase dept). After this pass
+    the tokenizer can stay case-sensitive without missing those — and we avoid
+    case-insensitive course-code matching that would swallow 'and 20C'/'or 20D'
+    (English conjunctions) as fake dept codes.
+    """
+    def _norm(m: re.Match[str]) -> str:
+        dept = m.group(1).upper()
+        if dept in _NON_DEPT_WORDS:
+            return m.group(0)  # leave a non-dept match alone
+        return f"{dept} {m.group(2).upper()}"
+
+    return _COURSE_CODE_RE_LOOSE.sub(_norm, text)
+
+
 def _expand_bare_numbers(text: str) -> str:
     """Inside a span like 'MATH 20A, 20B, and 20C', prefix bare numbers with the most recent dept."""
     out: list[str] = []
     last_dept: str | None = None
-    i = 0
-    # Walk the string; whenever we see a course code, remember its dept;
-    # whenever we see a bare number that looks like a course number (and is in a list/AND/OR
-    # context, not a year/score/etc.), prefix with last_dept.
-    tokens = re.findall(r"[A-Z]{2,5}\s+\d+[A-Z]{0,3}|\d+[A-Z]{0,3}|[^A-Z\d]+|.", text)
+    tokens = _BARE_NUMBER_TOKENIZER.findall(text)
     for tok in tokens:
         m = _COURSE_CODE_RE.fullmatch(tok)
         if m:
             last_dept = m.group(1)
             out.append(tok)
-            i += 1
             continue
         bn = _BARE_NUMBER_RE.fullmatch(tok)
         if bn and last_dept:
-            # Only inflate if this looks like a course number (digit-letter pattern)
-            # and we're in a list-y context. Cheap heuristic: the *previous* output
-            # should end with a comma, "or", "and", or "(".
-            prev_blob = "".join(out[-3:]).rstrip()
+            prev_blob = "".join(out[-3:]).rstrip().lower()
             if prev_blob.endswith((",", "or", "and", "(")):
                 out.append(f"{last_dept} {tok}")
-                i += 1
                 continue
         out.append(tok)
-        i += 1
     return "".join(out)
 
 
@@ -298,6 +320,7 @@ def _resolve_commas(toks: list[_Tok]) -> list[_Tok]:
     """Resolve COMMAs into operator tokens.
 
     Rules:
+      * Adjacent COMMAs collapse to a single COMMA (handles malformed ", , and X").
       * COMMA followed immediately by AND/OR -> drop COMMA AND elevate the operator
         to TOP_AND/TOP_OR. This captures English scope-marking commas:
         "X or Y, and Z"  -> (X or Y) and Z   (TOP_AND binds looser than OR)
@@ -305,6 +328,14 @@ def _resolve_commas(toks: list[_Tok]) -> list[_Tok]:
         token and become its kind. If that conjunction is TOP_*, become regular
         AND/OR (Oxford comma list, no scope elevation needed).
     """
+    # Pre-pass: collapse adjacent COMMAs.
+    collapsed: list[_Tok] = []
+    for t in toks:
+        if t.kind == "COMMA" and collapsed and collapsed[-1].kind == "COMMA":
+            continue
+        collapsed.append(t)
+    toks = collapsed
+
     out: list[_Tok] = []
     # First pass: drop ", and" / ", or" and elevate to TOP_*.
     i = 0
@@ -491,6 +522,9 @@ def parse(text: str) -> ParseResult:
         return ParseResult(kind=PrereqKind.PREREQ, raw=raw)
 
     kind, body = _detect_kind(raw)
+    # Normalize first so every later regex can be case-sensitive without missing
+    # mixed-case catalog entries like "Math 20D".
+    body = _normalize_course_codes(body)
     body, notes = _strip_notes(body)
     body = _strip_drops(body)
     body = _wrap_grouping_hints(body)

@@ -332,3 +332,38 @@ def test_either_keyword_dropped() -> None:
     assert sorted(r.groups) == sorted(
         [G("MATH 20D", "MATH 20F"), G("MATH 20D", "MATH 31AH")]
     )
+
+
+# ---------- Bug-fix regression tests --------------------------------------
+
+
+def test_bare_numbers_inherit_dept_after_lowercase() -> None:
+    """Catalog occasionally uses lowercase 'Math 20A'. The bare-number expansion
+    must still inherit the dept for the numbers that follow."""
+    r = parse("Math 20A, 20B, and 20C")
+    assert r.groups == [G("MATH 20A", "MATH 20B", "MATH 20C")]
+
+
+def test_double_comma_does_not_drop_courses() -> None:
+    """Malformed double commas shouldn't cause downstream tokens to be dropped."""
+    r = parse("MATH 20A, , and MATH 20B")
+    assert r.groups == [G("MATH 20A", "MATH 20B")]
+
+
+def test_lowercase_grade_qualifier_dropped() -> None:
+    r = parse("MATH 20B with a grade of c- or better")
+    assert r.groups == [G("MATH 20B")]
+
+
+def test_known_limit_mixed_top_level_left_associative() -> None:
+    """Documented limitation (parser README): when TOP_AND and TOP_OR mix at the
+    top level (rare in real prose), the parser binds left-associatively. This test
+    pins current behavior so a future change is visible."""
+    r = parse("MATH 20A, and MATH 20B, or MATH 20C, and MATH 20D")
+    # Current: ((20A AND 20B) OR 20C) AND 20D  ->  {20A,20B,20D}, {20C,20D}
+    # Ideal:   (20A AND 20B) OR (20C AND 20D)  ->  {20A,20B}, {20C,20D}
+    # The first is what we produce today; the second is what an LLM fallback
+    # should yield. Test pins the current behavior.
+    assert sorted(r.groups) == sorted(
+        [G("MATH 20A", "MATH 20B", "MATH 20D"), G("MATH 20C", "MATH 20D")]
+    )

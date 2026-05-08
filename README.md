@@ -35,7 +35,7 @@ flowchart LR
 python3.11 -m venv .venv
 source .venv/bin/activate
 pip install -e ".[dev]"
-# scrape (defaults to all Tier 1 majors; cached after first run)
+# scrape (defaults to every configured catalog page; cached after first run)
 python -m backend.scraper
 # build the local SQLite DB from scraped JSON
 python -m backend.loader
@@ -85,11 +85,13 @@ git push
 
 The deploy is **pure static** (no serverless functions, no database). All ~1,650 courses + 1,900 prereq edges fit in ~1MB of JSON (~150KB gzipped) and load in one fetch.
 
-## Scope (Tier 1 majors only for v1)
+## Scope
 
-MATH, PHYS, CHEM, BIBC/BICD/BIEB/BILD/BIMM/BIPN (Biological Sciences), CSE, ECE, MAE, BENG, NANO, SE.
+Catalog pages currently scraped: MATH, PHYS, CHEM, BIOL (covers BIBC / BICD / BIEB / BILD / BIMM / BIPN / BISP), CSE, ECE, MAE, BENG, NANO, SE, ECON, DSC.
 
-Cross-department prereqs are handled naturally — a BICD course requiring CHEM 7L or whatever resolves correctly because the prereq edge is keyed by course code, not department.
+Adding another department is a one-line addition in [`SCRAPED_CATALOGS`](backend/scraper.py).
+
+Cross-department prereqs are handled naturally — a BICD course requiring CHEM 7L resolves correctly because the prereq edge is keyed by course code, not department.
 
 ## Parsing strategy
 
@@ -150,11 +152,11 @@ This models `(MATH 20A and MATH 20B) or (MATH 10A and MATH 10B)` as group 0 = {2
 ## Next steps
 
 - Wire up Anthropic Haiku LLM fallback for unparsed prereq strings (interface is stubbed in `backend/llm_fallback.py`).
-- Add the rest of the College/Majors beyond Tier 1.
+- Add more catalog pages beyond the current set.
 - Add `units` to the completed-courses panel so users can track progress toward graduation.
 - Quarter-aware scheduling (typically-offered-in-Fall vs. Winter vs. Spring) — this requires a different data source than the catalog.
 - Schema-aware admin endpoint so non-engineers can correct misparsed prereqs.
 
 ## Anti-goals
 
-No auth, no user accounts. No admin panel. No graph database. No additional majors beyond Tier 1 in v1.
+No auth, no user accounts. No admin panel. No graph database.
