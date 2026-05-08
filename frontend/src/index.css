@@ -242,3 +242,129 @@ textarea:focus {
 .search-result-btn:hover {
   background: var(--color-purple-tint);
 }
+
+/* ---------- Layout shell (responsive) ----------------------------------- */
+
+.shell {
+  display: grid;
+  grid-template-columns: 340px 1fr;
+  height: 100vh;
+  background: var(--color-bg-subtle);
+}
+
+.sidebar {
+  padding: 20px 18px;
+  border-right: 1px solid var(--color-border);
+  overflow-y: auto;
+  background: var(--color-bg);
+  box-shadow: var(--shadow-ambient);
+  z-index: 1;
+}
+
+.main-graph {
+  position: relative;
+  min-width: 0; /* allow ReactFlow to shrink in flex/grid contexts */
+}
+
+.mobile-bar {
+  display: none;
+}
+
+/* Tablet + mobile: stack and add a slide-down drawer with hamburger. */
+@media (max-width: 768px) {
+  .shell {
+    grid-template-columns: 1fr;
+    grid-template-rows: 52px 1fr;
+  }
+
+  .mobile-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 16px;
+    background: var(--color-bg);
+    border-bottom: 1px solid var(--color-border);
+    box-shadow: var(--shadow-ambient);
+    z-index: 12;
+    position: relative;
+  }
+
+  .mobile-bar h1 {
+    font-size: 16px;
+    line-height: 1;
+    letter-spacing: -0.16px;
+  }
+
+  .mobile-bar .menu-toggle {
+    background: var(--color-purple);
+    color: #fff;
+    border: none;
+    border-radius: var(--radius-sm);
+    padding: 8px 12px;
+    font-size: 13px;
+    font-weight: 400;
+    min-height: 36px;
+    min-width: 60px;
+  }
+
+  .sidebar {
+    position: fixed;
+    top: 52px;
+    left: 0;
+    right: 0;
+    max-height: calc(100vh - 52px);
+    border-right: none;
+    border-bottom: 1px solid var(--color-border);
+    transform: translateY(-110%);
+    transition: transform 200ms ease;
+    z-index: 11;
+    box-shadow: var(--shadow-elevated);
+  }
+
+  .sidebar.open {
+    transform: translateY(0);
+  }
+
+  .main-graph {
+    height: 100%;
+  }
+
+  /* Tap targets: bump up button heights on touch */
+  .search-result-btn {
+    padding: 12px;
+    min-height: 44px;
+    font-size: 13px;
+  }
+
+  input,
+  textarea {
+    font-size: 16px; /* prevent iOS auto-zoom */
+    padding: 10px 12px;
+  }
+
+  .btn-ghost {
+    min-height: 32px;
+    padding: 6px 12px;
+  }
+}
+
+/* Backdrop behind the open mobile drawer */
+.sidebar-backdrop {
+  display: none;
+}
+@media (max-width: 768px) {
+  .sidebar-backdrop {
+    display: block;
+    position: fixed;
+    inset: 52px 0 0 0;
+    background: rgba(6, 27, 49, 0.18);
+    z-index: 10;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 200ms ease;
+  }
+  .sidebar-backdrop.open {
+    opacity: 1;
+    pointer-events: auto;
+  }
+}

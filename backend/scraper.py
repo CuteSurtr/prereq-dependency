@@ -43,6 +43,7 @@ SCRAPED_CATALOGS: tuple[str, ...] = (
     "SE",    # Structural Engineering
     "ECON",  # Economics
     "DSC",   # Data Science
+    "COGS",  # Cognitive Science
 )
 
 

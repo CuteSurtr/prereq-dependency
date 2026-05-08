@@ -15,20 +15,6 @@ function parseCompletedList(text: string): string[] {
 }
 
 const styles = {
-  shell: {
-    display: "grid",
-    gridTemplateColumns: "340px 1fr",
-    height: "100vh",
-    background: "var(--color-bg-subtle)",
-  } as const,
-  sidebar: {
-    padding: "20px 18px",
-    borderRight: "1px solid var(--color-border)",
-    overflowY: "auto",
-    background: "var(--color-bg)",
-    boxShadow: "var(--shadow-ambient)",
-    zIndex: 1,
-  } as const,
   brand: {
     fontSize: 22,
     fontWeight: 300,
@@ -169,6 +155,7 @@ export default function App() {
   const [query, setQuery] = useState("");
   const [focus, setFocus] = useState<string>(DEFAULT_FOCUS);
   const [completedRaw, setCompletedRaw] = useState("");
+  const [drawerOpen, setDrawerOpen] = useState(false);
 
   useEffect(() => {
     loadGraph()
@@ -205,7 +192,10 @@ export default function App() {
 
   const onSelectCourse = useCallback(
     (code: string) => {
-      if (graph?.courses[code]) setFocus(code);
+      if (graph?.courses[code]) {
+        setFocus(code);
+        setDrawerOpen(false); // close mobile drawer after picking
+      }
     },
     [graph],
   );
@@ -232,8 +222,30 @@ export default function App() {
   const courseCount = Object.keys(graph.courses).length;
 
   return (
-    <div style={styles.shell}>
-      <aside style={styles.sidebar} className="scroll-y">
+    <div className="shell">
+      <header className="mobile-bar" aria-label="App header">
+        <h1 style={{ ...styles.brand, fontSize: 16 }}>
+          UCSD <span style={styles.brandPurple}>Prereq Graph</span>
+        </h1>
+        <button
+          className="menu-toggle"
+          onClick={() => setDrawerOpen((v) => !v)}
+          aria-expanded={drawerOpen}
+          aria-controls="sidebar"
+        >
+          {drawerOpen ? "Close" : "Menu"}
+        </button>
+      </header>
+      <button
+        className={`sidebar-backdrop${drawerOpen ? " open" : ""}`}
+        onClick={() => setDrawerOpen(false)}
+        aria-label="Close menu"
+        tabIndex={drawerOpen ? 0 : -1}
+      />
+      <aside
+        id="sidebar"
+        className={`sidebar scroll-y${drawerOpen ? " open" : ""}`}
+      >
         <h1 style={styles.brand}>
           UCSD <span style={styles.brandPurple}>Prereq Graph</span>
         </h1>
@@ -389,7 +401,7 @@ export default function App() {
           </a>
         </p>
       </aside>
-      <main style={{ position: "relative" }}>
+      <main className="main-graph">
         <Graph
           graph={graph}
           focusCode={focus}
