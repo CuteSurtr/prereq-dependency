@@ -94,6 +94,27 @@ _NOTE_PATTERNS: tuple[tuple[re.Pattern[str], str], ...] = (
         ),
         "may enroll with consent",
     ),
+    # Duplicate-credit warnings — "Students may not receive credit for X and Y"
+    # and "May not be taken for credit after X". These mention course codes but
+    # are policy notes, not prereqs. Strip them so they don't pollute groups.
+    (
+        re.compile(
+            r"Students may not receive credit for[^.]*\.?",
+            re.I,
+        ),
+        "duplicate-credit notice",
+    ),
+    (
+        re.compile(
+            r"May not be (?:taken|received) for credit (?:after|if)[^.]*\.?",
+            re.I,
+        ),
+        "duplicate-credit notice",
+    ),
+    (
+        re.compile(r"\bRenumbered from [A-Z]{2,5}\s+\d+[A-Z]{0,3}\.?", re.I),
+        "renumbered",
+    ),
     (re.compile(r"\bconsent of instructor\b\.?", re.I), "consent of instructor"),
     (re.compile(r"\bconsent of (the )?department\b\.?", re.I), "consent of department"),
     (re.compile(r"\binstructor approval\b\.?", re.I), "instructor approval"),
@@ -197,18 +218,86 @@ _SLASH_RE = re.compile(
     r"\b([A-Z]{2,5}\s+\d+[A-Z]{0,3})\s*/\s*([A-Z]{2,5}\s+\d+[A-Z]{0,3})",
     re.I,
 )
+# Hyphenated course series, e.g. 'PHYS 4A-B' or 'MATH 20A-B-C'. The catalog uses
+# this shorthand to mean a hard AND of the listed series. Expand to explicit ANDs.
+_HYPHEN_SERIES_RE = re.compile(
+    r"\b([A-Z]{2,5}\s+\d+)([A-Z])((?:-[A-Z])+)",
+    re.I,
+)
+# Catalog convention: 'X and Y or Z [or W ...]' at the end of a clause means
+# 'X and (Y or Z [or W ...])'. Strict logical precedence (AND tighter than OR)
+# would give '(X and Y) or Z' instead, which lets a student take just Z alone
+# — almost never the prereq author's intent. We add explicit parens around
+# the OR-chain when (a) the chain is preceded by exactly one AND and a course,
+# and (b) the chain is at a clause boundary (period, semicolon, or end). The
+# clause-boundary requirement avoids breaking 'X and Y or Z and W' which is
+# genuinely '(X and Y) or (Z and W)'.
+_AND_OR_CHAIN_RE = re.compile(
+    r"\b([A-Z]{2,5}\s+\d+[A-Z]{0,3})"                # X
+    r"\s+and\s+"
+    r"("
+    r"[A-Z]{2,5}\s+\d+[A-Z]{0,3}"                    # Y
+    r"(?:\s+or\s+[A-Z]{2,5}\s+\d+[A-Z]{0,3})+"       # or Z [or W ...]
+    r")"
+    r"(?=\s*[.;]|\s*$)",                              # at clause end
+    re.I,
+)
+# Mirror heuristic for the leading position: '... or X or Y or Z and W ...' at
+# clause start means '(... or X or Y or Z) and W'. Require 2+ ORs (3+ courses)
+# in the chain to avoid bad rewrites of single-OR patterns whose intent is
+# genuinely ambiguous.
+_OR_AND_CHAIN_RE = re.compile(
+    r"(^|[.;]\s*)"                                    # clause start
+    r"("
+    r"[A-Z]{2,5}\s+\d+[A-Z]{0,3}"                     # X
+    r"(?:\s+or\s+[A-Z]{2,5}\s+\d+[A-Z]{0,3}){2,}"    # 2+ 'or Z'
+    r")"
+    r"\s+and\s+",
+    re.I,
+)
+
+
+def _wrap_and_or_chain(text: str) -> str:
+    """Wrap trailing OR-chains so AND binds looser than the chain — matches
+    catalog convention where the foundational prereq comes first and a list
+    of acceptable alternatives for the second slot follows."""
+    return _AND_OR_CHAIN_RE.sub(r"\1 and (\2)", text)
+
+
+def _wrap_or_and_chain(text: str) -> str:
+    """Mirror of _wrap_and_or_chain for leading OR-chains: '(X or Y or Z) and W'.
+    Requires 3+ courses in the OR chain to be conservative."""
+    return _OR_AND_CHAIN_RE.sub(r"\1(\2) and ", text)
+
+
+def _expand_hyphen_series(text: str) -> str:
+    """'PHYS 4A-B' -> 'PHYS 4A and PHYS 4B'; 'MATH 20A-B-C' -> 'MATH 20A and 20B and 20C'."""
+    def expand(m: re.Match[str]) -> str:
+        prefix = m.group(1)  # 'PHYS 4'
+        first_letter = m.group(2)
+        rest_letters = [letter for letter in m.group(3).split("-") if letter]
+        letters = [first_letter, *rest_letters]
+        return " and ".join(f"{prefix}{letter}" for letter in letters)
+
+    return _HYPHEN_SERIES_RE.sub(expand, text)
 
 
 def _wrap_grouping_hints(text: str) -> str:
-    """Convert implicit groupings ('either', slash) into explicit parens.
+    """Convert implicit groupings ('either', slash, hyphen series, trailing
+    OR-chain) into explicit AND/OR.
 
-    'either X or Y or Z' -> '(X or Y or Z)'
-    'X/Y'                -> '(X or Y)'
+    'either X or Y or Z'     -> '(X or Y or Z)'
+    'X/Y'                    -> '(X or Y)'
+    'PHYS 4A-B'              -> 'PHYS 4A and PHYS 4B'
+    'X and Y or Z or W.'     -> 'X and (Y or Z or W).'
 
     This way the existing parser uses correct precedence without special cases.
     """
+    text = _expand_hyphen_series(text)
     text = _EITHER_RE.sub(r"(\1)", text)
     text = _SLASH_RE.sub(r"(\1 or \2)", text)
+    text = _wrap_or_and_chain(text)
+    text = _wrap_and_or_chain(text)
     return text
 
 
@@ -218,18 +307,27 @@ _BARE_NUMBER_TOKENIZER = re.compile(
 
 
 def _normalize_course_codes(text: str) -> str:
-    """Uppercase the dept + number portion of every course code occurrence.
+    """Uppercase the dept + number portion of every course code occurrence
+    and strip leading zeros from the number ('MAE 08' -> 'MAE 8').
 
     Catalog text occasionally uses 'Math 20D' (lowercase dept). After this pass
     the tokenizer can stay case-sensitive without missing those — and we avoid
     case-insensitive course-code matching that would swallow 'and 20C'/'or 20D'
     (English conjunctions) as fake dept codes.
+
+    The leading-zero strip mirrors what the scraper does to course codes in
+    the courses table — MAE's course-name listing uses 'MAE 08' while prereq
+    prose uses 'MAE 8'. Both must agree so the loader doesn't drop edges.
     """
     def _norm(m: re.Match[str]) -> str:
         dept = m.group(1).upper()
         if dept in _NON_DEPT_WORDS:
             return m.group(0)  # leave a non-dept match alone
-        return f"{dept} {m.group(2).upper()}"
+        number = m.group(2).upper().lstrip("0")
+        # Don't reduce "0" -> "" (no real course is just zero, but be safe).
+        if not number or not number[0].isdigit():
+            number = "0" + number
+        return f"{dept} {number}"
 
     return _COURSE_CODE_RE_LOOSE.sub(_norm, text)
 
@@ -350,11 +448,36 @@ def _resolve_commas(toks: list[_Tok]) -> list[_Tok]:
         i += 1
 
     # Second pass: bare COMMA -> next conjunction kind, mapped down from TOP_*.
+    # If the surrounding clauses both contain OR (i.e. parallel OR-clauses
+    # separated only by a comma, e.g. "A or B , C or D"), elevate the COMMA
+    # to TOP_AND. The natural reading of that pattern is (A|B) AND (C|D).
     final: list[_Tok] = []
     for i, t in enumerate(out):
         if t.kind != "COMMA":
             final.append(t)
             continue
+
+        # Look back: did the current clause contain OR?
+        prev_had_or = False
+        depth_back = 0
+        for j in range(i - 1, -1, -1):
+            tj = out[j]
+            if tj.kind == "RPAREN":
+                depth_back += 1
+            elif tj.kind == "LPAREN":
+                depth_back -= 1
+                if depth_back < 0:
+                    break
+            elif depth_back == 0:
+                if tj.kind == "COMMA":
+                    break
+                if tj.kind in ("OR", "TOP_OR"):
+                    prev_had_or = True
+                    break
+                if tj.kind in ("AND", "TOP_AND"):
+                    break
+
+        # Look forward: what's the next conjunction in the next clause?
         depth = 0
         next_conj: str | None = None
         for j in range(i + 1, len(out)):
@@ -368,7 +491,11 @@ def _resolve_commas(toks: list[_Tok]) -> list[_Tok]:
             elif depth == 0 and tj.kind in ("AND", "OR", "TOP_AND", "TOP_OR"):
                 next_conj = tj.kind
                 break
-        if next_conj == "TOP_AND":
+
+        if prev_had_or and next_conj in ("OR", "TOP_OR"):
+            # Two parallel OR clauses joined by a bare comma -> AND.
+            final.append(_Tok("TOP_AND"))
+        elif next_conj == "TOP_AND":
             final.append(_Tok("AND"))
         elif next_conj == "TOP_OR":
             final.append(_Tok("OR"))
@@ -527,8 +654,12 @@ def parse(text: str) -> ParseResult:
     body = _normalize_course_codes(body)
     body, notes = _strip_notes(body)
     body = _strip_drops(body)
-    body = _wrap_grouping_hints(body)
+    # Expand bare numbers BEFORE grouping hints — the AND-OR-chain heuristic
+    # needs to see fully-qualified course codes (e.g. 'ECON 1 and MATH 10C or
+    # 20C or 31BH' must already read as 'ECON 1 and MATH 10C or MATH 20C or
+    # MATH 31BH' for the OR chain to be detected).
     body = _expand_bare_numbers(body)
+    body = _wrap_grouping_hints(body)
 
     # Quick check: any course codes survived?
     if not _COURSE_CODE_RE.search(body):

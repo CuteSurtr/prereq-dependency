@@ -355,6 +355,100 @@ def test_lowercase_grade_qualifier_dropped() -> None:
     assert r.groups == [G("MATH 20B")]
 
 
+def test_leading_zero_normalized_in_prereq_text() -> None:
+    """MAE's catalog uses zero-padded course-names ('MAE 08') but prereq text
+    is unpadded. The normalizer strips leading zeros so both forms match."""
+    r = parse("MAE 08 or MAE 09")
+    assert sorted(r.groups) == sorted([G("MAE 8"), G("MAE 9")])
+
+
+def test_leading_zero_in_oxford_list() -> None:
+    r = parse("MAE 08, MAE 09, and MAE 11")
+    assert r.groups == [G("MAE 11", "MAE 8", "MAE 9")]
+
+
+def test_parallel_or_clauses_joined_by_bare_comma() -> None:
+    """Catalog pattern from BENG 100: 'MATH 18 or MATH 31AH , MATH 20C or MATH 31BH'
+    means (MATH 18 OR MATH 31AH) AND (MATH 20C OR MATH 31BH)."""
+    r = parse("MATH 18 or MATH 31AH, MATH 20C or MATH 31BH")
+    expected = sorted([
+        G("MATH 18", "MATH 20C"),
+        G("MATH 18", "MATH 31BH"),
+        G("MATH 20C", "MATH 31AH"),
+        G("MATH 31AH", "MATH 31BH"),
+    ])
+    assert sorted(r.groups) == expected
+
+
+def test_hyphen_series_two_letters() -> None:
+    """Catalog uses 'PHYS 4A-B' as shorthand for 'PHYS 4A and PHYS 4B'."""
+    r = parse("PHYS 4A-B")
+    assert r.groups == [G("PHYS 4A", "PHYS 4B")]
+
+
+def test_hyphen_series_three_letters() -> None:
+    r = parse("MATH 20A-B-C")
+    assert r.groups == [G("MATH 20A", "MATH 20B", "MATH 20C")]
+
+
+def test_duplicate_credit_notice_dropped() -> None:
+    """'Students may not receive credit for X and Y' is a policy note, not a prereq."""
+    r = parse("CSE 21. Students may not receive credit for both CSE 100R and CSE 100.")
+    assert r.groups == [G("CSE 21")]
+
+
+def test_renumbered_notice_dropped() -> None:
+    r = parse("PHYS 2C and CHEM 6A. Renumbered from MAE 110A.")
+    assert r.groups == [G("CHEM 6A", "PHYS 2C")]
+
+
+# ---------- Catalog AND-OR-chain heuristic --------------------------------
+
+
+def test_and_or_chain_wraps_correctly() -> None:
+    """Catalog convention: 'X and Y or Z' means 'X and (Y or Z)'.
+    MAE 30A in particular: 'PHYS 2A and MATH 31BH or MATH 20C.'"""
+    r = parse("PHYS 2A and MATH 31BH or MATH 20C.")
+    assert sorted(r.groups) == sorted(
+        [G("MATH 31BH", "PHYS 2A"), G("MATH 20C", "PHYS 2A")]
+    )
+
+
+def test_and_or_chain_three_alternatives() -> None:
+    """ECON 100A: 'ECON 1 and MATH 10C or 20C or 31BH.'"""
+    r = parse("ECON 1 and MATH 10C or 20C or 31BH.")
+    assert sorted(r.groups) == sorted(
+        [
+            G("ECON 1", "MATH 10C"),
+            G("ECON 1", "MATH 20C"),
+            G("ECON 1", "MATH 31BH"),
+        ]
+    )
+
+
+def test_and_or_chain_doesnt_apply_when_followed_by_and() -> None:
+    """'X and Y or Z and W' is genuinely '(X and Y) or (Z and W)' — the trailing
+    AND keeps strict precedence. The heuristic should NOT wrap in this case."""
+    r = parse("MATH 20A and MATH 20B or MATH 10A and MATH 10B")
+    assert sorted(r.groups) == sorted(
+        [G("MATH 20A", "MATH 20B"), G("MATH 10A", "MATH 10B")]
+    )
+
+
+def test_leading_or_chain_wraps_when_followed_by_and() -> None:
+    """Catalog pattern from CSE 100: '(X or Y or Z or W or V) and CSE 12 and ...'."""
+    r = parse(
+        "CSE 21 or MATH 154 or MATH 158 or MATH 184 or MATH 188 and CSE 12 and CSE 15L or CSE 29 or ECE 15"
+    )
+    # Each group must have CSE 12 + one of the 5 leading alternatives + one of
+    # the 3 trailing alternatives = 5 * 3 = 15 groups of 3 elements each.
+    assert len(r.groups) == 15
+    for g in r.groups:
+        assert "CSE 12" in g
+        assert any(c in g for c in ("CSE 21", "MATH 154", "MATH 158", "MATH 184", "MATH 188"))
+        assert any(c in g for c in ("CSE 15L", "CSE 29", "ECE 15"))
+
+
 def test_known_limit_mixed_top_level_left_associative() -> None:
     """Documented limitation (parser README): when TOP_AND and TOP_OR mix at the
     top level (rare in real prose), the parser binds left-associatively. This test

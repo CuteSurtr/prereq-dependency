@@ -89,10 +89,21 @@ def load_into(db_path: Path = DB_PATH) -> dict[str, int]:
             edge_type = _KIND_TO_PREREQ_TYPE[result.kind]
 
             for gid, group in enumerate(result.groups):
+                if course.code in group:
+                    # A group that includes the course itself is unsatisfiable. Drop
+                    # the WHOLE group, not just the self-edge: keeping the rest as a
+                    # smaller AND would silently weaken the requirement (e.g.
+                    # {MAE 101A, MAE 11} -> {MAE 11} would imply MAE 11 alone is
+                    # enough, which contradicts the original intent).
+                    stats["groups_dropped_self_prereq"] += 1
+                    continue
+                if any(req not in known_codes for req in group):
+                    # Same reasoning: if any AND member is unknown (deprecated /
+                    # cross-listed elsewhere / typo), the surviving subset is a
+                    # weakened version of the constraint. Drop the whole group.
+                    stats["groups_dropped_unknown_course"] += 1
+                    continue
                 for required in group:
-                    if required not in known_codes:
-                        stats["edges_skipped_unknown_course"] += 1
-                        continue
                     session.add(
                         Prereq(
                             course_code=course.code,

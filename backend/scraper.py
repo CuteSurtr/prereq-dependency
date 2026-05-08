@@ -105,8 +105,24 @@ _COURSE_HEADER_RE = re.compile(
     re.X,
 )
 
+# Some depts (notably MAE) zero-pad single-digit course numbers in their
+# course-name listing ("MAE 08") but use the unpadded form ("MAE 8") in prereq
+# prose. Normalize to the unpadded canonical form everywhere.
+_LEADING_ZERO_RE = re.compile(r"^([A-Z]{2,5})\s+0+(\d)")
+
+
+def _normalize_course_code(code: str) -> str:
+    return _LEADING_ZERO_RE.sub(r"\1 \2", code)
+
+# The catalog wraps the "Prerequisites:" marker in inconsistent combinations
+# of <strong>/<em>. We've seen at least three real variants on the live site:
+#   <strong class="italic"><em>Prerequisites:</em></strong>   (most courses)
+#   <strong><em><em>Prerequisites:</em></em></strong>          (CSE 100, PHYS 2BL)
+#   <em><strong>Prerequisites:</strong></em>                    (CHEM 6A)
+# Tolerate any non-zero nesting of <strong>/<em> in any order.
 _PREREQ_MARKER_RE = re.compile(
-    r"<strong[^>]*>\s*<em[^>]*>\s*Prerequisites?\s*:?\s*</em>\s*</strong>", re.I
+    r"(?:<(?:strong|em)[^>]*>\s*)+\s*Prerequisites?\s*:?\s*(?:</(?:strong|em)\s*>\s*)+",
+    re.I,
 )
 
 
@@ -136,11 +152,15 @@ def parse_department_html(_url_key: str, html: str) -> list[ScrapedCourse]:
     desc_nodes = tree.css("p.course-descriptions")
 
     for name_node, desc_node in zip(name_nodes, desc_nodes, strict=False):
-        header = name_node.text(strip=True)
+        # Use a space separator so wrapped titles like
+        #   <p class="course-name">MAE 30A. <span>Statics</span> (4)</p>
+        # render with whitespace between segments. text(strip=True) alone
+        # collapses to "MAE 30A.Statics(4)" and the header regex misses it.
+        header = re.sub(r"\s+", " ", name_node.text(separator=" ")).strip()
         m = _COURSE_HEADER_RE.match(header)
         if not m:
             continue
-        code = re.sub(r"\s+", " ", m.group("code")).strip().upper()
+        code = _normalize_course_code(re.sub(r"\s+", " ", m.group("code")).strip().upper())
         # Subject code lives at the front of the course code, not the URL key
         # (the BIOL.html page contains BILD/BIBC/BICD/BIEB/BIMM/BIPN courses).
         subject = code.split()[0]
