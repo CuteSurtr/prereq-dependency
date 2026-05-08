@@ -1,5 +1,3 @@
-"""FastAPI app. Read endpoints over the courses + prereqs tables."""
-
 from __future__ import annotations
 
 from collections.abc import Iterator
@@ -20,7 +18,6 @@ SessionLocal = sessionmaker(bind=_engine, autoflush=False, autocommit=False)
 
 
 def _ensure_tables() -> None:
-    """Create empty tables on first import so cold deploys don't 500 before scrape."""
     DB_PATH.parent.mkdir(parents=True, exist_ok=True)
     Base.metadata.create_all(_engine)
 
@@ -78,7 +75,6 @@ def get_course(code: str, db: Session = Depends(get_db)) -> dict:
 
 @app.get("/api/courses/{code}/prereqs")
 def get_prereqs(code: str, db: Session = Depends(get_db)) -> dict:
-    """Upstream prereq groups. Within a group: AND. Across groups: OR."""
     code = code.upper()
     course = db.get(Course, code)
     if not course:
@@ -105,7 +101,6 @@ def get_prereqs(code: str, db: Session = Depends(get_db)) -> dict:
 
 @app.get("/api/courses/{code}/unlocks")
 def get_unlocks(code: str, db: Session = Depends(get_db)) -> list[dict]:
-    """Downstream: courses that list this one as a prereq."""
     code = code.upper()
     rows = db.scalars(
         select(Prereq)

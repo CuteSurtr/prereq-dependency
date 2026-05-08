@@ -1,5 +1,3 @@
-"""SQLAlchemy models for courses and prereq edges."""
-
 from __future__ import annotations
 
 from enum import StrEnum

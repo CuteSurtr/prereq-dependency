@@ -1,14 +1,6 @@
-/* Design system inspired by Stripe (see DESIGN.md). sohne-var isn't free so we
-   fall back to Inter (closest geometric match), then SF Pro / system. The
-   "ss01" stylistic set is enabled where the chosen font supports it -- Inter
-   doesn't ship the same alternate glyphs as sohne-var, but Stripe's overall
-   feel comes from weight 300 + tight tracking + the navy/purple palette + the
-   blue-tinted shadow system, which we can hit faithfully. */
-
 @import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500&family=JetBrains+Mono:wght@400;500&display=swap");
 
 :root {
-  /* Colors */
   --color-bg: #ffffff;
   --color-bg-subtle: #f6f9fc;
   --color-purple: #533afd;
@@ -29,7 +21,6 @@
   --color-magenta-bg: #ffd7ef;
   --color-ruby: #ea2261;
 
-  /* Shadows (blue-tinted, multi-layer per Stripe) */
   --shadow-ambient: rgba(23, 23, 23, 0.06) 0px 3px 6px;
   --shadow-standard: rgba(23, 23, 23, 0.08) 0px 15px 35px;
   --shadow-elevated: rgba(50, 50, 93, 0.25) 0px 30px 45px -30px,
@@ -37,17 +28,14 @@
   --shadow-deep: rgba(3, 3, 39, 0.25) 0px 14px 21px -14px,
     rgba(0, 0, 0, 0.1) 0px 8px 17px -8px;
 
-  /* Radii */
   --radius-sm: 4px;
   --radius-md: 6px;
   --radius-lg: 8px;
 
-  /* Typography */
   --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "SF Pro Display",
     "Segoe UI", system-ui, sans-serif;
   --font-mono: "JetBrains Mono", "SF Mono", "Source Code Pro", Menlo, monospace;
 
-  /* Spacing scale */
   --space-1: 4px;
   --space-2: 8px;
   --space-3: 12px;
@@ -70,7 +58,7 @@ body,
 
 body {
   font-family: var(--font-sans);
-  font-feature-settings: "ss01", "cv11"; /* Inter geometric alts */
+  font-feature-settings: "ss01", "cv11";
   font-weight: 400;
   color: var(--color-navy);
   background: var(--color-bg);
@@ -78,7 +66,6 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* Heading defaults — weight 300 is the brand voice */
 h1,
 h2,
 h3,
@@ -144,7 +131,6 @@ textarea:focus {
   outline: none;
 }
 
-/* Reusable utility classes */
 .label {
   font-size: 12px;
   font-weight: 500;
@@ -202,7 +188,6 @@ textarea:focus {
   box-shadow: var(--shadow-elevated);
 }
 
-/* Override React Flow defaults to match the design */
 .react-flow__attribution {
   display: none !important;
 }
@@ -220,7 +205,6 @@ textarea:focus {
   background: var(--color-bg-subtle) !important;
 }
 
-/* Custom scrollbars in the sidebar so the chrome stays clean */
 .scroll-y::-webkit-scrollbar {
   width: 6px;
 }
@@ -232,7 +216,6 @@ textarea:focus {
   background: transparent;
 }
 
-/* Search result list separators — last item has no border. */
 .search-result-btn {
   border-bottom: 1px solid var(--color-border);
 }
@@ -242,8 +225,6 @@ textarea:focus {
 .search-result-btn:hover {
   background: var(--color-purple-tint);
 }
-
-/* ---------- Layout shell (responsive) ----------------------------------- */
 
 .shell {
   display: grid;
@@ -263,14 +244,13 @@ textarea:focus {
 
 .main-graph {
   position: relative;
-  min-width: 0; /* allow ReactFlow to shrink in flex/grid contexts */
+  min-width: 0;
 }
 
 .mobile-bar {
   display: none;
 }
 
-/* Tablet + mobile: stack and add a slide-down drawer with hamburger. */
 @media (max-width: 768px) {
   .shell {
     grid-template-columns: 1fr;
@@ -329,7 +309,6 @@ textarea:focus {
     height: 100%;
   }
 
-  /* Tap targets: bump up button heights on touch */
   .search-result-btn {
     padding: 12px;
     min-height: 44px;
@@ -338,7 +317,7 @@ textarea:focus {
 
   input,
   textarea {
-    font-size: 16px; /* prevent iOS auto-zoom */
+    font-size: 16px;
     padding: 10px 12px;
   }
 
@@ -348,7 +327,6 @@ textarea:focus {
   }
 }
 
-/* Backdrop behind the open mobile drawer */
 .sidebar-backdrop {
   display: none;
 }

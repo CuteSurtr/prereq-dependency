@@ -1,11 +1,3 @@
-"""Load scraped JSON files into the SQLite DB used by the API.
-
-Reads every `data/raw/*.json` produced by `backend.scraper`, parses each course's
-prereq prose, and writes courses + prereq edges to `backend/data/courses.db`.
-
-Idempotent: drops + recreates tables on each run.
-"""
-
 from __future__ import annotations
 
 import argparse
@@ -24,7 +16,7 @@ DB_PATH = Path(__file__).parent / "data" / "courses.db"
 
 
 _KIND_TO_PREREQ_TYPE: dict[PrereqKind, PrereqType] = {
-    PrereqKind.PREREQ: PrereqType.AND,  # individual edge type within a group
+    PrereqKind.PREREQ: PrereqType.AND,
     PrereqKind.COREQ: PrereqType.COREQ,
     PrereqKind.RECOMMENDED: PrereqType.RECOMMENDED,
 }
@@ -41,13 +33,10 @@ def load_into(db_path: Path = DB_PATH) -> dict[str, int]:
     if not raw_files:
         raise SystemExit(f"No raw scrape files at {RAW_DIR}; run `python -m backend.scraper` first.")
 
-    # First pass: insert all courses (prereq edges may reference cross-dept courses,
-    # so we want every course in the DB before we add edges).
     all_courses: list[dict] = []
     for f in raw_files:
         all_courses.extend(json.loads(f.read_text(encoding="utf-8")))
 
-    # Index by code so we can drop edges that reference unknown courses.
     known_codes: set[str] = {c["code"] for c in all_courses}
 
     with Session(engine) as session:
@@ -66,7 +55,6 @@ def load_into(db_path: Path = DB_PATH) -> dict[str, int]:
             )
         session.commit()
 
-        # Second pass: parse and insert prereq edges.
         for c in all_courses:
             raw = c.get("raw_prereq_text")
             if not raw:
@@ -90,17 +78,9 @@ def load_into(db_path: Path = DB_PATH) -> dict[str, int]:
 
             for gid, group in enumerate(result.groups):
                 if course.code in group:
-                    # A group that includes the course itself is unsatisfiable. Drop
-                    # the WHOLE group, not just the self-edge: keeping the rest as a
-                    # smaller AND would silently weaken the requirement (e.g.
-                    # {MAE 101A, MAE 11} -> {MAE 11} would imply MAE 11 alone is
-                    # enough, which contradicts the original intent).
                     stats["groups_dropped_self_prereq"] += 1
                     continue
                 if any(req not in known_codes for req in group):
-                    # Same reasoning: if any AND member is unknown (deprecated /
-                    # cross-listed elsewhere / typo), the surviving subset is a
-                    # weakened version of the constraint. Drop the whole group.
                     stats["groups_dropped_unknown_course"] += 1
                     continue
                 for required in group:
@@ -119,8 +99,8 @@ def load_into(db_path: Path = DB_PATH) -> dict[str, int]:
 
 
 def main() -> None:
-    ap = argparse.ArgumentParser(description="Load scraped JSON into the API SQLite DB.")
-    ap.add_argument("--db", default=str(DB_PATH), help=f"Output DB path (default: {DB_PATH})")
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--db", default=str(DB_PATH))
     args = ap.parse_args()
 
     stats = load_into(Path(args.db))

@@ -1,22 +1,3 @@
-"""Dump the SQLite DB to a single JSON file the frontend reads at runtime.
-
-Vercel deploys the frontend as static; this avoids the complexity of a Python
-serverless function while keeping the FastAPI backend alive for local dev.
-
-Output schema:
-    {
-      "courses": {
-        "MATH 20A": {"code": "MATH 20A", "title": "...", "department": "MATH", "units": "4",
-                     "description": "...", "raw_prereq_text": "...", "notes": null,
-                     "prereq_groups": [["MATH 4C"], ["MATH 10A"]],   // OR across, AND within
-                     "coreq_groups": [...],
-                     "recommended_groups": [...]},
-        ...
-      },
-      "unlocks": {"MATH 20A": ["MATH 20B", "PHYS 2A", ...], ...}
-    }
-"""
-
 from __future__ import annotations
 
 import argparse
@@ -42,7 +23,6 @@ def export(db_path: Path = DB_PATH, out_path: Path = OUT_PATH) -> dict[str, int]
         courses = session.query(Course).all()
         edges = session.query(Prereq).all()
 
-        # Build groups per course, partitioned by edge type.
         groups: dict[
             tuple[str, PrereqType], dict[int, list[str]]
         ] = defaultdict(lambda: defaultdict(list))
@@ -75,7 +55,6 @@ def export(db_path: Path = DB_PATH, out_path: Path = OUT_PATH) -> dict[str, int]
                 "recommended_groups": recommended_groups,
             }
 
-        # Unlocks: who lists each course as a (blocking) prereq?
         for e in edges:
             if e.prereq_type == PrereqType.AND:
                 unlocks[e.required_course_code].append(e.course_code)
@@ -95,7 +74,7 @@ def export(db_path: Path = DB_PATH, out_path: Path = OUT_PATH) -> dict[str, int]
 
 
 def main() -> None:
-    ap = argparse.ArgumentParser(description="Export DB to a single JSON for the static frontend.")
+    ap = argparse.ArgumentParser(description="Export DB to JSON for the static frontend.")
     ap.add_argument("--db", default=str(DB_PATH))
     ap.add_argument("--out", default=str(OUT_PATH))
     args = ap.parse_args()

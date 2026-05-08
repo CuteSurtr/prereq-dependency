@@ -161,7 +161,6 @@ export default function App() {
     loadGraph()
       .then((g) => {
         setGraph(g);
-        // Fall back gracefully if the hardcoded default is gone from the data.
         setFocus((current) =>
           g.courses[current]
             ? current
@@ -171,8 +170,6 @@ export default function App() {
       .catch((e) => setError(String(e)));
   }, []);
 
-  // Stable Set: only mint a new instance when the parsed code list actually changes.
-  // This keeps the Graph's useMemo from invalidating on every keystroke.
   const completedKey = useMemo(
     () => parseCompletedList(completedRaw).sort().join(","),
     [completedRaw],
@@ -194,7 +191,7 @@ export default function App() {
     (code: string) => {
       if (graph?.courses[code]) {
         setFocus(code);
-        setDrawerOpen(false); // close mobile drawer after picking
+        setDrawerOpen(false);
       }
     },
     [graph],

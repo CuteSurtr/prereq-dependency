@@ -1,5 +1,3 @@
-"""Hello-world test so CI is green from day 1."""
-
 from backend import __version__
 
 

@@ -1,11 +1,3 @@
-"""Scrape course pages from catalog.ucsd.edu.
-
-One page per department (e.g. https://catalog.ucsd.edu/courses/MATH.html).
-Polite: 1 request/second, on-disk HTML cache so reruns hit the cache.
-
-Outputs a list of `ScrapedCourse` dicts to a JSON file under data/raw/.
-"""
-
 from __future__ import annotations
 
 import argparse
@@ -27,23 +19,20 @@ USER_AGENT = (
     "(educational; contact 133225877+CuteSurtr@users.noreply.github.com)"
 )
 
-# Catalog URL keys we scrape. UCSD lumps all bio subject codes (BILD, BIBC,
-# BICD, BIEB, BIMM, BIPN) onto BIOL.html — the per-course subject is recovered
-# from each course code (e.g. "BICD 100" -> department="BICD").
 SCRAPED_CATALOGS: tuple[str, ...] = (
     "MATH",
     "PHYS",
     "CHEM",
-    "BIOL",  # contains BILD/BIBC/BICD/BIEB/BIMM/BIPN
+    "BIOL",
     "CSE",
     "ECE",
     "MAE",
-    "BENG",  # Bioengineering
-    "NANO",  # NanoEngineering
-    "SE",    # Structural Engineering
-    "ECON",  # Economics
-    "DSC",   # Data Science
-    "COGS",  # Cognitive Science
+    "BENG",
+    "NANO",
+    "SE",
+    "ECON",
+    "DSC",
+    "COGS",
 )
 
 
@@ -66,7 +55,6 @@ def _raw_path(department: str) -> Path:
 
 
 def fetch(department: str, *, force: bool = False, client: httpx.Client | None = None) -> str:
-    """Fetch a department's catalog HTML, caching to disk. Polite ~1 req/sec."""
     CACHE_DIR.mkdir(parents=True, exist_ok=True)
     cache = _cache_path(department)
     if cache.exists() and not force:
@@ -92,34 +80,17 @@ def fetch(department: str, *, force: bool = False, client: httpx.Client | None =
             client.close()
 
 
-# Course-name pattern, e.g. "MATH 20A. Calculus for Science and Engineering (4)"
-# Code is dept + space + number that may end in a letter (and optional trailing letter for honors).
 _COURSE_HEADER_RE = re.compile(
-    r"""^\s*
-        (?P<code>[A-Z]{2,5}\s+\d+[A-Z]{0,3})  # MATH 20A, CSE 11, BIEB 121, BENG 100D
-        \.?\s+
-        (?P<title>.+?)
-        \s*\((?P<units>[^)]+)\)
-        \s*$
-    """,
-    re.X,
+    r"^\s*(?P<code>[A-Z]{2,5}\s+\d+[A-Z]{0,3})\.?\s+(?P<title>.+?)\s*\((?P<units>[^)]+)\)\s*$"
 )
 
-# Some depts (notably MAE) zero-pad single-digit course numbers in their
-# course-name listing ("MAE 08") but use the unpadded form ("MAE 8") in prereq
-# prose. Normalize to the unpadded canonical form everywhere.
 _LEADING_ZERO_RE = re.compile(r"^([A-Z]{2,5})\s+0+(\d)")
 
 
 def _normalize_course_code(code: str) -> str:
     return _LEADING_ZERO_RE.sub(r"\1 \2", code)
 
-# The catalog wraps the "Prerequisites:" marker in inconsistent combinations
-# of <strong>/<em>. We've seen at least three real variants on the live site:
-#   <strong class="italic"><em>Prerequisites:</em></strong>   (most courses)
-#   <strong><em><em>Prerequisites:</em></em></strong>          (CSE 100, PHYS 2BL)
-#   <em><strong>Prerequisites:</strong></em>                    (CHEM 6A)
-# Tolerate any non-zero nesting of <strong>/<em> in any order.
+
 _PREREQ_MARKER_RE = re.compile(
     r"(?:<(?:strong|em)[^>]*>\s*)+\s*Prerequisites?\s*:?\s*(?:</(?:strong|em)\s*>\s*)+",
     re.I,
@@ -131,11 +102,6 @@ def _strip_html(s: str) -> str:
 
 
 def _split_description_and_prereq(html_inner: str) -> tuple[str, str | None]:
-    """Description and prereq text live in the same `course-descriptions` <p>,
-    separated by a `<strong><em>Prerequisites:</em></strong>` marker.
-
-    Returns (description_text, prereq_text_or_None).
-    """
     match = _PREREQ_MARKER_RE.search(html_inner)
     if not match:
         return _strip_html(html_inner), None
@@ -152,17 +118,11 @@ def parse_department_html(_url_key: str, html: str) -> list[ScrapedCourse]:
     desc_nodes = tree.css("p.course-descriptions")
 
     for name_node, desc_node in zip(name_nodes, desc_nodes, strict=False):
-        # Use a space separator so wrapped titles like
-        #   <p class="course-name">MAE 30A. <span>Statics</span> (4)</p>
-        # render with whitespace between segments. text(strip=True) alone
-        # collapses to "MAE 30A.Statics(4)" and the header regex misses it.
         header = re.sub(r"\s+", " ", name_node.text(separator=" ")).strip()
         m = _COURSE_HEADER_RE.match(header)
         if not m:
             continue
         code = _normalize_course_code(re.sub(r"\s+", " ", m.group("code")).strip().upper())
-        # Subject code lives at the front of the course code, not the URL key
-        # (the BIOL.html page contains BILD/BIBC/BICD/BIEB/BIMM/BIPN courses).
         subject = code.split()[0]
         title = m.group("title").strip().rstrip(".")
         units = m.group("units").strip()
@@ -224,13 +184,9 @@ def scrape_many(departments: list[str], *, force: bool = False, sleep: float = 1
 
 
 def main() -> None:
-    ap = argparse.ArgumentParser(description="Scrape UCSD catalog department pages.")
-    ap.add_argument(
-        "departments",
-        nargs="*",
-        help="Department codes (e.g. MATH CSE). Default: all configured catalogs.",
-    )
-    ap.add_argument("--force", action="store_true", help="Bypass disk cache.")
+    ap = argparse.ArgumentParser()
+    ap.add_argument("departments", nargs="*")
+    ap.add_argument("--force", action="store_true")
     args = ap.parse_args()
 
     depts = [d.upper() for d in args.departments] or list(SCRAPED_CATALOGS)

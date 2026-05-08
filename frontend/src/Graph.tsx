@@ -169,10 +169,7 @@ const UNLOCK_CAP = 12;
 function GraphInner({ graph, focusCode, completed, onSelectCourse }: GraphProps) {
   const reactFlow = useReactFlow();
 
-  // Re-fit the viewport whenever the focus changes. ReactFlow's `fitView` prop is
-  // initial-only, so without this an off-screen new prereq tree silently lurks.
   useEffect(() => {
-    // Wait one tick for nodes to render before fitting.
     const t = setTimeout(() => reactFlow.fitView({ padding: 0.2, duration: 250 }), 50);
     return () => clearTimeout(t);
   }, [focusCode, reactFlow]);
@@ -349,7 +346,6 @@ function GraphInner({ graph, focusCode, completed, onSelectCourse }: GraphProps)
 }
 
 export function Graph(props: GraphProps) {
-  // Provider is required for `useReactFlow` to work inside GraphInner.
   return (
     <ReactFlowProvider>
       <GraphInner {...props} />
