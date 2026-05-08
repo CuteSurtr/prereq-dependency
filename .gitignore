@@ -15,6 +15,7 @@ dist/
 node_modules/
 frontend/dist/
 frontend/.vite/
+frontend/tsconfig.tsbuildinfo
 
 # Data caches (raw scrape HTML, the SQLite db is committed for deploy)
 data/cache/
