@@ -129,26 +129,23 @@ def _strip_notes(text: str) -> tuple[str, str]:
     return text, "; ".join(notes)
 
 
-_DESC_NOTE_PATTERNS: tuple[tuple[re.Pattern[str], str], ...] = (
-    (re.compile(r"Credit not offered[^.]*\.", re.I), "credit"),
-    (re.compile(r"Students may not receive credit[^.]*\.", re.I), "credit"),
-    (
-        re.compile(
-            r"May not be (?:taken|received) for credit (?:after|if|with)[^.]*\.", re.I
-        ),
-        "credit",
-    ),
-    (
-        re.compile(
-            r"If [A-Z]{2,5}\s*\d+[A-Z]?\s+and\s+[A-Z]{2,5}\s*\d+[A-Z]?\s+are concurrently taken[^.]*\.",
-            re.I,
-        ),
-        "credit",
-    ),
-    (re.compile(r"\bRenumbered from[^.]*\.", re.I), "renumbered"),
-    (re.compile(r"\b(?:Formerly|Previously) numbered[^.]*\.", re.I), "renumbered"),
-    (re.compile(r"\bCross-listed with[^.]*\.", re.I), "cross-listed"),
+_DESC_STRUCTURAL_PATTERNS: tuple[re.Pattern[str], ...] = (
+    re.compile(r"\bRenumbered from[^.]*\.", re.I),
+    re.compile(r"\b(?:Formerly|Previously) numbered[^.]*\.", re.I),
+    re.compile(r"\bCross-listed with[^.]*\.", re.I),
 )
+_COURSE_CODE_IN_TEXT = re.compile(r"\b[A-Z]{2,5}\s+\d+[A-Z]{0,3}\b")
+
+
+def _split_sentences(text: str) -> list[str]:
+    return [s for s in re.split(r"(?<=[.!?])\)?\s+", text) if s.strip()]
+
+
+def _normalize_note(s: str) -> str:
+    s = re.sub(r"\s+", " ", s).strip()
+    s = s.lstrip("(").rstrip(")").rstrip(".").strip()
+    s = re.sub(r"^Note\s*:\s*", "", s, flags=re.I)
+    return s
 
 
 def extract_description_notes(description: str | None) -> list[str]:
@@ -156,12 +153,25 @@ def extract_description_notes(description: str | None) -> list[str]:
         return []
     found: list[str] = []
     seen: set[str] = set()
-    for pat, _label in _DESC_NOTE_PATTERNS:
+
+    def _add(raw: str) -> None:
+        s = _normalize_note(raw)
+        key = s.lower()
+        if key and key not in seen:
+            seen.add(key)
+            found.append(s)
+
+    for s in _split_sentences(description):
+        if "credit" not in s.lower():
+            continue
+        if not _COURSE_CODE_IN_TEXT.search(s):
+            continue
+        _add(s)
+
+    for pat in _DESC_STRUCTURAL_PATTERNS:
         for m in pat.finditer(description):
-            sentence = re.sub(r"\s+", " ", m.group(0)).strip().rstrip(".")
-            if sentence not in seen:
-                seen.add(sentence)
-                found.append(sentence)
+            _add(m.group(0))
+
     return found
 
 

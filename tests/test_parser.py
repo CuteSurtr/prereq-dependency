@@ -378,6 +378,31 @@ def test_extract_description_notes_concurrent() -> None:
     assert any("concurrently taken" in n for n in notes)
 
 
+def test_extract_description_notes_credit_not_allowed() -> None:
+    from backend.parser import extract_description_notes
+    desc = "Probability and statistics. Credit not allowed for ECON 120A after ECE 109, MAE 108, MATH 180A, MATH 183, or MATH 186."
+    notes = extract_description_notes(desc)
+    assert any("ECE 109" in n and "credit" in n.lower() for n in notes)
+
+
+def test_extract_description_notes_partial_credit() -> None:
+    from backend.parser import extract_description_notes
+    desc = (
+        "Probability spaces. (Two units of credit offered for MATH 180A if ECON 120A previously, "
+        "no credit offered if ECON 120A concurrently. Two units of credit offered for MATH 180A "
+        "if MATH 183 or 186 taken previously or concurrently.)"
+    )
+    notes = extract_description_notes(desc)
+    assert any("ECON 120A" in n and "credit" in n.lower() for n in notes)
+
+
+def test_extract_description_notes_one_of_following() -> None:
+    from backend.parser import extract_description_notes
+    desc = "Course content. Students may only receive credit for one of the following: CHEM 40C, 40CH, 140C, or 140CH."
+    notes = extract_description_notes(desc)
+    assert any("CHEM 40C" in n and "credit" in n.lower() for n in notes)
+
+
 def test_extract_description_notes_renumbered() -> None:
     from backend.parser import extract_description_notes
     notes = extract_description_notes("Course content. Renumbered from BIMM 171A.")
