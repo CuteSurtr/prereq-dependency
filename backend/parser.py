@@ -63,6 +63,13 @@ _NOTE_PATTERNS: tuple[tuple[re.Pattern[str], str], ...] = (
         "duplicate-credit notice",
     ),
     (
+        re.compile(
+            r"students who have (?:completed|taken)[^.]*may not receive credit[^.]*\.?",
+            re.I,
+        ),
+        "duplicate-credit notice",
+    ),
+    (
         re.compile(r"May not be (?:taken|received) for credit (?:after|if)[^.]*\.?", re.I),
         "duplicate-credit notice",
     ),
@@ -289,7 +296,7 @@ def _tokenize(text: str) -> list[_Tok]:
             i += 1
             continue
         m = _COURSE_CODE_RE.match(text, i)
-        if m:
+        if m and m.group(1).upper() not in _NON_DEPT_WORDS:
             code = f"{m.group(1).upper()} {m.group(2).upper()}"
             toks.append(_Tok("COURSE", code))
             i = m.end()
@@ -525,6 +532,7 @@ def parse(text: str) -> ParseResult:
     found_in_text = {
         f"{m.group(1).upper()} {m.group(2).upper()}"
         for m in _COURSE_CODE_RE.finditer(body)
+        if m.group(1).upper() not in _NON_DEPT_WORDS
     }
     confident = bool(groups) and extracted == found_in_text
 

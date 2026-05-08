@@ -81,7 +81,10 @@ def fetch(department: str, *, force: bool = False, client: httpx.Client | None =
 
 
 _COURSE_HEADER_RE = re.compile(
-    r"^\s*(?P<code>[A-Z]{2,5}\s+\d+[A-Z]{0,3})\.?\s+(?P<title>.+?)\s*\((?P<units>[^)]+)\)\s*$"
+    r"^\s*(?P<code>[A-Z]{2,5}\s+\d+[A-Z]{0,3})"
+    r"[^.]*"
+    r"\.\s+(?P<title>.+?)"
+    r"\s*\((?P<units>\d[^()]*)\)"
 )
 
 _LEADING_ZERO_RE = re.compile(r"^([A-Z]{2,5})\s+0+(\d)")
@@ -92,7 +95,7 @@ def _normalize_course_code(code: str) -> str:
 
 
 _PREREQ_MARKER_RE = re.compile(
-    r"(?:<(?:strong|em)[^>]*>\s*)+\s*Prerequisites?\s*:?\s*(?:</(?:strong|em)\s*>\s*)+",
+    r"(?:<(?:strong|em|i|b)[^>]*>\s*)+\s*Prerequisites?[^<]*(?:</(?:strong|em|i|b)\s*>\s*)+",
     re.I,
 )
 
