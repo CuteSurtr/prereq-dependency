@@ -38,3 +38,5 @@ playwright/.cache/
 # Env
 .env
 .env.local
+
+.claude/
