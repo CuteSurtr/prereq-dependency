@@ -4,7 +4,9 @@ let cached: Promise<GraphData> | null = null;
 
 export function loadGraph(): Promise<GraphData> {
   if (!cached) {
-    cached = fetch("/graph.json").then((r) => {
+    // BASE_URL resolves to "/" in dev and "/prereq-dependency/" on GitHub Pages.
+    const url = `${import.meta.env.BASE_URL}graph.json`.replace(/\/+/g, "/");
+    cached = fetch(url).then((r) => {
       if (!r.ok) throw new Error(`Failed to load graph.json: ${r.status}`);
       return r.json() as Promise<GraphData>;
     });
