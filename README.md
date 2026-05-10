@@ -3,7 +3,7 @@
 Visualize course prerequisites at UC San Diego. Search a course, see its upstream prereq tree and downstream unlocks. Paste your completed courses to highlight what you're eligible for next.
 
 **Live:** [https://cutesurtr.github.io/prereq-dependency/](https://cutesurtr.github.io/prereq-dependency/)
-**Stats:** 2,018 courses · 3,259 prereq edges · 13 catalog pages · responsive (desktop + mobile drawer).
+**Stats:** 2,000+ courses · 3,259 prereq edges · 13 catalog pages · responsive (desktop + mobile drawer).
 
 ## Architecture
 
