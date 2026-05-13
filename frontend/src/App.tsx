@@ -175,6 +175,7 @@ export default function App() {
     clearAllMutes,
     setMyDepartments,
     setHideCascading,
+    setHideOutOfDept,
   } = useProfile();
   // Seed the departments input synchronously from the persisted profile so
   // the input never flickers empty on first paint.
@@ -382,7 +383,7 @@ export default function App() {
           </select>
         </div>
 
-        <div style={{ ...styles.field, marginBottom: 14 }}>
+        <div style={{ ...styles.field, marginBottom: 14, gap: 6 }}>
           <label
             style={{
               display: "flex",
@@ -403,6 +404,38 @@ export default function App() {
               Hide redundant prereqs{" "}
               <span style={{ color: "var(--color-body)", fontSize: 11 }}>
                 (cascading)
+              </span>
+            </span>
+          </label>
+          <label
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              fontSize: 12,
+              color: profile.myDepartments.length === 0
+                ? "var(--color-body-muted, var(--color-body))"
+                : "var(--color-label)",
+              cursor: profile.myDepartments.length === 0 ? "not-allowed" : "pointer",
+              opacity: profile.myDepartments.length === 0 ? 0.55 : 1,
+            }}
+            title={
+              profile.myDepartments.length === 0
+                ? "Set My departments first"
+                : "STEM foundation courses (MATH 20 series, PHYS 2/4, CHEM 6, BILD 1–4, intro programming) stay visible."
+            }
+          >
+            <input
+              type="checkbox"
+              checked={profile.hideOutOfDept}
+              disabled={profile.myDepartments.length === 0}
+              onChange={(e) => setHideOutOfDept(e.target.checked)}
+              style={{ accentColor: "var(--color-purple)" }}
+            />
+            <span>
+              Hide out-of-dept{" "}
+              <span style={{ color: "var(--color-body)", fontSize: 11 }}>
+                (except STEM core)
               </span>
             </span>
           </label>

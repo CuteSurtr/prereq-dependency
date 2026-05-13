@@ -3,6 +3,7 @@ export type Profile = {
   muted: string[];
   myDepartments: string[];
   hideCascading: boolean;
+  hideOutOfDept: boolean;
 };
 
 const STORAGE_KEY = "prereq-profile-v1";
@@ -12,6 +13,7 @@ const EMPTY_PROFILE: Profile = {
   muted: [],
   myDepartments: [],
   hideCascading: false,
+  hideOutOfDept: false,
 };
 
 export function loadProfile(): Profile {
@@ -31,6 +33,8 @@ export function loadProfile(): Profile {
         ? parsed.myDepartments
         : [],
       hideCascading: typeof parsed.hideCascading === "boolean" ? parsed.hideCascading : false,
+      hideOutOfDept:
+        typeof parsed.hideOutOfDept === "boolean" ? parsed.hideOutOfDept : false,
     };
   } catch {
     return EMPTY_PROFILE;

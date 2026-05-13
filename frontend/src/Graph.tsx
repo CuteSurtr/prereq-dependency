@@ -1,6 +1,7 @@
 import type DagreType from "dagre";
 import { useEffect, useMemo, useState } from "react";
 import { computeRedundantDirects } from "./cascade";
+import { FOUNDATION_CODES } from "./foundations";
 import ReactFlow, {
   Background,
   BackgroundVariant,
@@ -477,6 +478,22 @@ function GraphInner({
   );
   const cascadeSet = redundantDirects?.get(focusCode);
 
+  // Strict dept hide: build a set of out-of-dept courses that should disappear
+  // entirely. STEM foundation courses (MATH 20 series etc.) are exempt so
+  // students still see the actual path through math/physics/chem/bio basics.
+  const deptHiddenSet = useMemo(() => {
+    if (!profile.hideOutOfDept || myDeptSet.size === 0) {
+      return new Set<string>();
+    }
+    const hidden = new Set<string>();
+    for (const [code, c] of Object.entries(graph.courses)) {
+      if (!myDeptSet.has(c.department) && !FOUNDATION_CODES.has(code)) {
+        hidden.add(code);
+      }
+    }
+    return hidden;
+  }, [graph, myDeptSet, profile.hideOutOfDept]);
+
   const {
     nodes,
     edges,
@@ -528,11 +545,18 @@ function GraphInner({
 
     // ── Chain view (depth > 1) ──
     if (expandDepth > 1) {
+      // For the chain BFS, combine user mutes with the strict-dept hidden set
+      // so out-of-dept (non-foundation) courses don't appear anywhere in the
+      // upstream chain when the toggle is on.
+      const chainHidden =
+        deptHiddenSet.size === 0
+          ? mutedSet
+          : new Set<string>([...mutedSet, ...deptHiddenSet]);
       const { courseCodes, edges: chainEdges, truncated } = buildUpstreamChain(
         graph,
         focusCode,
         profile.picks,
-        mutedSet,
+        chainHidden,
         expandDepth,
       );
       const positions = layoutChain(courseCodes, chainEdges);
@@ -731,6 +755,14 @@ function GraphInner({
           }
           alts = afterCascade;
         }
+        if (deptHiddenSet.size > 0) {
+          const afterDept = alts.filter((a) => !deptHiddenSet.has(a));
+          if (afterDept.length === 0) {
+            // All remaining alts are out-of-dept non-foundation; drop slot.
+            continue;
+          }
+          alts = afterDept;
+        }
         slotRenders.push({ origIdx: i, alts, muted: false });
       }
 
@@ -862,6 +894,7 @@ function GraphInner({
         group.forEach((c) => {
           if (mutedSet.has(c)) return;
           if (cascadeSet?.has(c)) return;
+          if (deptHiddenSet.has(c)) return;
           if (!groupOfPrereq[c]) {
             groupOfPrereq[c] = [];
             flatPrereqs.push(c);
@@ -920,7 +953,9 @@ function GraphInner({
 
     nodes.push(mkCourseNode(focusCode, COL_X.focus, 0, "focus"));
 
-    const visibleUnlocks = unlocks.filter((code) => !mutedSet.has(code));
+    const visibleUnlocks = unlocks.filter(
+      (code) => !mutedSet.has(code) && !deptHiddenSet.has(code),
+    );
     visibleUnlocks.forEach((code, i) => {
       const y = i * ROW_H - ((visibleUnlocks.length - 1) * ROW_H) / 2;
       nodes.push(mkCourseNode(code, COL_X.unlock, y, "unlock"));
@@ -964,6 +999,7 @@ function GraphInner({
     mutedSet,
     myDeptSet,
     cascadeSet,
+    deptHiddenSet,
     setPick,
     clearPick,
     expandDepth,
