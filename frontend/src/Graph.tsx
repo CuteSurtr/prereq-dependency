@@ -129,10 +129,10 @@ function CourseNode({ data }: NodeProps<CourseNodeData>) {
       onClick={handleClick}
       title={
         isMutedAlt
-          ? "Hidden — unhide from the sidebar to use this alternative"
+          ? "Hidden: unhide from the sidebar to use this alternative"
           : data.pickable
             ? isPicked
-              ? "Picked — click to keep, or pick another alternative"
+              ? "Picked: click to keep, or pick another alternative"
               : "Click to pick this alternative"
             : undefined
       }
@@ -785,8 +785,8 @@ function GraphInner({
       // skipped by cascade filtering.
       //
       // Order of filters:
-      //  1. Mute filter — drop user-hidden alts. Empty slot ⇒ unreachable.
-      //  2. Cascade filter — drop alts that are transitively implied by some
+      //  1. Mute filter: drop user-hidden alts. Empty slot ⇒ unreachable.
+      //  2. Cascade filter: drop alts that are transitively implied by some
       //     other direct prereq (when "Hide redundant" is on). If every
       //     remaining alt is redundant, drop the slot entirely.
       type SlotRender = {
@@ -1162,7 +1162,7 @@ function GraphInner({
                 boxShadow: "rgba(23,23,23,0.06) 0px 3px 6px",
               }}
             >
-              Unreachable — every option in at least one slot is hidden.
+              Unreachable: every option in at least one slot is hidden.
             </div>
           )}
           {spilloverCount > 0 && (

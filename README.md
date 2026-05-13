@@ -36,10 +36,10 @@ flowchart LR
 
 - **Backend:** Python 3.11, FastAPI, SQLAlchemy, SQLite. The full DB is dumped to `frontend/public/graph.json` at build time so the deployed app is **pure static** (no serverless cold starts, no DB to provision). FastAPI still runs locally for dev / future iteration.
 - **Scraper:** `httpx` + `selectolax`, polite 1 req/sec rate limit, on-disk HTML cache.
-- **Parser:** Hand-rolled, ~63 unit tests; ambiguous strings flagged for LLM fallback (stub interface — wire up an Anthropic key later).
+- **Parser:** Hand-rolled, ~63 unit tests; ambiguous strings flagged for LLM fallback (stub interface: wire up an Anthropic key later).
 - **Frontend:** Vite + React + TypeScript, [React Flow](https://reactflow.dev) for the graph, [dagre](https://github.com/dagrejs/dagre) (lazy-loaded) for the recursive chain layout. Stripe-inspired palette (Inter + JetBrains Mono, navy/purple, blue-tinted shadows). A small `ProfileContext` persists picks / mutes / department / toggle state in `localStorage` so a returning user keeps their saved view. Responsive: desktop two-column, mobile slide-down drawer.
 - **Deploy:** GitHub Pages (Vercel config available too).
-- **CI:** GitHub Actions — `ruff`, `mypy`, `pytest`, `tsc`, Playwright e2e.
+- **CI:** GitHub Actions: `ruff`, `mypy`, `pytest`, `tsc`, Playwright e2e.
 
 ## Local development
 
@@ -95,7 +95,7 @@ git push
 
 ### Vercel (alternative)
 
-[vercel.json](vercel.json) is also wired up. `vercel link` once, then `git push` — Vercel will pick up changes to `frontend/`, `data/`, `backend/export_static.py`, or `vercel.json` (others are skipped via `ignoreCommand`).
+[vercel.json](vercel.json) is also wired up. `vercel link` once, then `git push`: Vercel will pick up changes to `frontend/`, `data/`, `backend/export_static.py`, or `vercel.json` (others are skipped via `ignoreCommand`).
 
 The deploy is **pure static** (no serverless functions, no database). All ~2,018 courses + ~3,259 prereq edges fit in ~1.3 MB of JSON (~260 KB gzipped) and load in one fetch.
 
@@ -105,7 +105,7 @@ Catalog pages currently scraped: MATH, PHYS, CHEM, BIOL (covers BIBC / BICD / BI
 
 Adding another department is a one-line addition in [`SCRAPED_CATALOGS`](backend/scraper.py).
 
-Cross-department prereqs are handled naturally — a BICD course requiring CHEM 7L resolves correctly because the prereq edge is keyed by course code, not department. MAE 20A's PHYS prereqs unlock physics paths; CSE 100's MATH alternatives all resolve.
+Cross-department prereqs are handled naturally: a BICD course requiring CHEM 7L resolves correctly because the prereq edge is keyed by course code, not department. MAE 20A's PHYS prereqs unlock physics paths; CSE 100's MATH alternatives all resolve.
 
 ## Parsing strategy
 
@@ -115,7 +115,7 @@ UCSD prereq prose is messier than it looks. The parser is rule-based and runs in
    - `Recommended preparation:` → `RECOMMENDED` (non-blocking)
    - `Corequisite:` / `Concurrent enrollment in` → `COREQ`
    - default → `PREREQ`
-2. **Normalize course code casing and leading zeros** — `Math 20D` → `MATH 20D`, `MAE 08` → `MAE 8`. The catalog is inconsistent: MAE zero-pads single-digit course numbers in its course-name listing (`MAE 08`) but uses the unpadded form (`MAE 8`) in prereq prose. Without this step, the loader drops every reference to those courses as "unknown".
+2. **Normalize course code casing and leading zeros**: `Math 20D` → `MATH 20D`, `MAE 08` → `MAE 8`. The catalog is inconsistent: MAE zero-pads single-digit course numbers in its course-name listing (`MAE 08`) but uses the unpadded form (`MAE 8`) in prereq prose. Without this step, the loader drops every reference to those courses as "unknown".
 3. **Strip non-blocking notes** (`consent of instructor`, `dept approval`, `Students who have not completed listed prerequisites may enroll…`, `Students may not receive credit for X and Y`, `Renumbered from X`) into a separate `notes` field.
 4. **Drop non-course atoms**: `Math Placement Exam qualifying score`, `AP Calculus AB score of 3, 4, or 5`, `with a grade of C– or better`, `(or equivalent)`. The AP / score patterns are written to consume the full comma chain (`score of 3, 4, or 5` is one drop, not three) so leftover loose numbers don't pollute downstream parsing.
 5. **Expand bare course numbers**: `MATH 20A, 20B, and 20C` → `MATH 20A, MATH 20B, MATH 20C`.
@@ -123,16 +123,16 @@ UCSD prereq prose is messier than it looks. The parser is rule-based and runs in
    - `either A or B or C` → `(A or B or C)`
    - `EDS 30/MATH 95` → `(EDS 30 or MATH 95)`
    - `PHYS 4A-B-C` → `PHYS 4A and PHYS 4B and PHYS 4C` (catalog series shorthand)
-   - `X and Y or Z [or W ...]` at clause end → `X and (Y or Z [or W ...])` (catalog convention; AND binds looser than the alternatives chain — strict precedence would let a student satisfy with `Z` alone)
+   - `X and Y or Z [or W ...]` at clause end → `X and (Y or Z [or W ...])` (catalog convention; AND binds looser than the alternatives chain: strict precedence would let a student satisfy with `Z` alone)
    - `X or Y or Z and W` at clause start (3+ courses in OR chain) → `(X or Y or Z) and W` (mirror of the previous heuristic for leading OR-chains)
 7. **Tokenize** to `COURSE | AND | OR | LPAREN | RPAREN | COMMA`.
 8. **Resolve commas**:
-   - `, and` / `, or` → elevate to `TOP_AND` / `TOP_OR` (binds *looser* than regular AND/OR — captures comma-elevated scope)
+   - `, and` / `, or` → elevate to `TOP_AND` / `TOP_OR` (binds *looser* than regular AND/OR: captures comma-elevated scope)
    - bare `,` between two OR-clauses (parallel-OR pattern) → `TOP_AND` (so `MATH 18 or MATH 31AH, MATH 20C or MATH 31BH` reads as `(18|31AH) and (20C|31BH)`)
    - bare `,` in a regular list → adopt the kind of the next conjunction
 9. **Recursive-descent parse** to an AST with three precedence levels (TOP_*, OR, AND), and **DNF-expand** to a list of `frozenset`s. Each `frozenset` becomes one `group_id` in the DB; AND within, OR across.
 
-The loader applies one more invariant: a group containing the course as its own prereq, or a course that doesn't exist in our scraped data, is dropped *as a whole* (not just the offending edge). Dropping a single edge from an AND group leaves a strict subset that's too easy to satisfy — e.g., `(MAE 101A or CENG 101A) AND (MAE 11 or MAE 110A or CENG 102)` would otherwise produce a group `{MAE 11}` alone, which contradicts the original intent.
+The loader applies one more invariant: a group containing the course as its own prereq, or a course that doesn't exist in our scraped data, is dropped *as a whole* (not just the offending edge). Dropping a single edge from an AND group leaves a strict subset that's too easy to satisfy: e.g., `(MAE 101A or CENG 101A) AND (MAE 11 or MAE 110A or CENG 102)` would otherwise produce a group `{MAE 11}` alone, which contradicts the original intent.
 
 | Pattern | Example | Result |
 |---|---|---|
@@ -158,11 +158,11 @@ The loader applies one more invariant: a group containing the course as its own 
 | Consent | `…with consent of instructor.` | `notes="consent of instructor"` |
 | Duplicate-credit | `Students may not receive credit for both CSE 100R and CSE 100.` | dropped (not a prereq) |
 
-**Confidence flag.** Parser sets `confident=False` when the set of course codes it extracted differs from what the regex finds in the cleaned body — the typical cause is a truly ambiguous string like `MATH 18 or MATH 20F or MATH 31AH and MATH 20C (or MATH 21C) or MATH 31BH` where operator precedence is genuinely unclear from the prose alone. Unconfident strings are stored as `raw_prereq_text` and surfaced in the UI. The unparseable ones are queued for the (currently stubbed) Haiku fallback in `backend/llm_fallback.py`.
+**Confidence flag.** Parser sets `confident=False` when the set of course codes it extracted differs from what the regex finds in the cleaned body: the typical cause is a truly ambiguous string like `MATH 18 or MATH 20F or MATH 31AH and MATH 20C (or MATH 21C) or MATH 31BH` where operator precedence is genuinely unclear from the prose alone. Unconfident strings are stored as `raw_prereq_text` and surfaced in the UI. The unparseable ones are queued for the (currently stubbed) Haiku fallback in `backend/llm_fallback.py`.
 
 **Catalog HTML quirks.** The `Prerequisites:` marker appears in three different `<strong>`/`<em>` nestings across the live site (`<strong class="italic"><em>...`, `<strong><em><em>...`, `<em><strong>...`). The scraper regex tolerates any combination, recovering ~1,100 edges that were previously dropped. Course titles wrapped in `<span>` (like `MAE 30A. <span>Statics</span> (4)`) are extracted with a space separator so the header regex still matches.
 
-**Factored slots alongside DNF.** The parser also emits a *factored* projection of the AST as `prereq_slots`: a flat list of OR-slots that are AND-joined (e.g. CSE 100's 15 DNF groups collapse to three slots — `{CSE 21 ∨ MATH 154/158/184/188}`, `{CSE 12}`, `{CSE 15L ∨ CSE 29 ∨ ECE 15}`). 913 of 1,087 prereq-having courses (~84%) factor cleanly; the rest (genuinely nested OR-of-AND prose) fall back to the legacy DNF rendering. Slots are what drive the "1 OF N" join pills in the UI.
+**Factored slots alongside DNF.** The parser also emits a *factored* projection of the AST as `prereq_slots`: a flat list of OR-slots that are AND-joined (e.g. CSE 100's 15 DNF groups collapse to three slots: `{CSE 21 ∨ MATH 154/158/184/188}`, `{CSE 12}`, `{CSE 15L ∨ CSE 29 ∨ ECE 15}`). 913 of 1,087 prereq-having courses (~84%) factor cleanly; the rest (genuinely nested OR-of-AND prose) fall back to the legacy DNF rendering. Slots are what drive the "1 OF N" join pills in the UI.
 
 ## UI features
 
@@ -172,9 +172,9 @@ The graph view is one focus course, with its prereqs on the left and unlocks on 
 - **Branch picks.** Clicking an alternative picks it: the slot collapses to that one course (with a purple ✓ badge) and a `+N hidden · change` pill appears beside it. Clicking the picked alt again navigates into its page; clicking the pill clears the pick. Picks persist in `localStorage` and survive reloads. Muting a course also sweeps any stale pick that referenced it.
 - **Recursive upstream chain.** Sidebar select for `Direct prereqs only` (default) / `2 levels up` / `3 / 5 / Full upstream chain`. Anything above depth 1 lazy-loads `dagre` and lays the whole DAG out left-to-right with proper layering. Capped at 160 nodes (BENG 161B's full chain is 42; the cap is rarely hit). The lazy import keeps ~30 KB gz off the depth-1 critical path.
 - **My departments + spillover banner.** Type a comma-separated list (`CSE, MATH`) into the input. Out-of-department prereqs fade with a dashed gray border and a banner reads `+N prereqs outside your departments`. Counts collapse correctly when you pick an in-dept alternative.
-- **Hide redundant prereqs (cascading).** `frontend/src/cascade.ts` computes each course's *mandatory ancestors* — the set of courses you are guaranteed to take regardless of which OR alternative you pick. A direct prereq is "redundant" if some other direct already requires it transitively. 159 courses in the current catalog have at least one such redundancy (~234 pairs total); flipping the toggle drops them from the slot, often collapsing a "1 of 5" pill down to a single AND. Examples: PHYS 100B's `{MATH 20A/B/C, MATH 31BH, PHYS 100A}` slot reduces to just `PHYS 100A`; ECON 230 drops the early-series prereqs already implied by their successors.
-- **Hide out-of-dept (except STEM core).** A stricter pair to the dept filter. When on (and a department is set), out-of-department courses disappear entirely from slots, the chain BFS, and the unlock column — except for a curated [STEM foundation list](frontend/src/foundations.ts) (MATH 20 series, MATH 18, MATH 10/11/15A/31AH-CH, PHYS 1/2/4 sequences + labs, CHEM 6/40/41, BILD 1–4) that almost every STEM major touches. Intentionally *not* on the foundation list: CSE intro programming, COGS 18, MAE 8, DSC 10/20/30 — these are major-specific intros and should disappear from a strict view.
-- **Full-course mute.** "Hide this course" button in the focus card. The sidebar gains a muted-courses list with per-row Unhide and a bulk Unhide all. Muted courses are stripped from prereq slots, unlocks, and chain BFS; if a slot's alternatives are *entirely* muted the slot renders dimmed with strikethrough and a red `Unreachable — every option in at least one slot is hidden` banner fires so the user knows why.
+- **Hide redundant prereqs (cascading).** `frontend/src/cascade.ts` computes each course's *mandatory ancestors*: the set of courses you are guaranteed to take regardless of which OR alternative you pick. A direct prereq is "redundant" if some other direct already requires it transitively. 159 courses in the current catalog have at least one such redundancy (~234 pairs total); flipping the toggle drops them from the slot, often collapsing a "1 of 5" pill down to a single AND. Examples: PHYS 100B's `{MATH 20A/B/C, MATH 31BH, PHYS 100A}` slot reduces to just `PHYS 100A`; ECON 230 drops the early-series prereqs already implied by their successors.
+- **Hide out-of-dept (except STEM core).** A stricter pair to the dept filter. When on (and a department is set), out-of-department courses disappear entirely from slots, the chain BFS, and the unlock column: except for a curated [STEM foundation list](frontend/src/foundations.ts) (MATH 20 series, MATH 18, MATH 10/11/15A/31AH-CH, PHYS 1/2/4 sequences + labs, CHEM 6/40/41, BILD 1–4) that almost every STEM major touches. Intentionally *not* on the foundation list: CSE intro programming, COGS 18, MAE 8, DSC 10/20/30: these are major-specific intros and should disappear from a strict view.
+- **Full-course mute.** "Hide this course" button in the focus card. The sidebar gains a muted-courses list with per-row Unhide and a bulk Unhide all. Muted courses are stripped from prereq slots, unlocks, and chain BFS; if a slot's alternatives are *entirely* muted the slot renders dimmed with strikethrough and a red `Unreachable: every option in at least one slot is hidden` banner fires so the user knows why.
 - **Completed courses → eligibility highlight.** Paste a list of codes you've already taken; downstream unlocks that become satisfiable light up green with a ✓ badge.
 
 ### Filter pipeline
@@ -216,15 +216,15 @@ prereqs(id PK, course_code FK, group_id, required_course_code FK, prereq_type)
 
 This models `(MATH 20A and MATH 20B) or (MATH 10A and MATH 10B)` as group 0 = {20A, 20B}, group 1 = {10A, 10B}.
 
-`prereq_slots_json` is the factored AND-of-OR projection of the same prereq AST (`[["CSE 21","MATH 154",...], ["CSE 12"], ["CSE 15L","CSE 29","ECE 15"]]` for CSE 100). It's nullable — only present when the parser was able to factor the prose into flat slots. The frontend prefers it for rendering and falls back to `prereq_groups` (the DNF) when null.
+`prereq_slots_json` is the factored AND-of-OR projection of the same prereq AST (`[["CSE 21","MATH 154",...], ["CSE 12"], ["CSE 15L","CSE 29","ECE 15"]]` for CSE 100). It's nullable: only present when the parser was able to factor the prose into flat slots. The frontend prefers it for rendering and falls back to `prereq_groups` (the DNF) when null.
 
 ## Next steps
 
 - Wire up Anthropic Haiku LLM fallback for unparsed prereq strings (interface is stubbed in `backend/llm_fallback.py`). Would also unblock factored slots for the remaining ~16% of unfactored courses.
 - Add more catalog pages beyond the current set.
-- **Pick-aware cascade.** Today the cascade analysis is conservative — a prereq is only flagged as redundant when *every* OR alternative implies it. Folding the user's current picks into the mandatory-ancestor calculation would let cascade catch cases like CSE 120: "CSE 29 is implied by CSE 30 *given that you picked CSE 29 as CSE 30's alternative.*"
+- **Pick-aware cascade.** Today the cascade analysis is conservative: a prereq is only flagged as redundant when *every* OR alternative implies it. Folding the user's current picks into the mandatory-ancestor calculation would let cascade catch cases like CSE 120: "CSE 29 is implied by CSE 30 *given that you picked CSE 29 as CSE 30's alternative.*"
 - Add `units` to the completed-courses panel so users can track progress toward graduation.
-- Quarter-aware scheduling (typically-offered-in-Fall vs. Winter vs. Spring) — this requires a different data source than the catalog.
+- Quarter-aware scheduling (typically-offered-in-Fall vs. Winter vs. Spring): this requires a different data source than the catalog.
 - Schema-aware admin endpoint so non-engineers can correct misparsed prereqs.
 - Shareable URLs that encode picks + mutes + toggle state in the hash, so a student can DM their planned path to a friend without losing localStorage.
 

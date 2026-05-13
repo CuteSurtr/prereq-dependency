@@ -1,7 +1,7 @@
 """Find redundant ("cascading") direct prereqs across the catalog.
 
 A direct prereq P of course C is redundant if some OTHER direct prereq Q of C
-already requires P transitively — i.e., taking Q implies you've also taken P,
+already requires P transitively: i.e., taking Q implies you've also taken P,
 so listing P alongside Q is noise.
 
 This is a conservative analysis: P is only flagged as redundant when EVERY
@@ -104,7 +104,7 @@ def find_redundant_directs(graph: dict) -> dict[str, list[tuple[str, list[str]]]
             continue
 
         # For each direct prereq P, check whether P is mandatory for some
-        # OTHER direct prereq Q (Q != P). If yes, P is redundant — listing Q
+        # OTHER direct prereq Q (Q != P). If yes, P is redundant: listing Q
         # already forces P.
         flagged: list[tuple[str, list[str]]] = []
         for p in sorted(directs):
@@ -150,7 +150,7 @@ def main() -> None:
         for p, implyers in redundant["CSE 120"]:
             print(f"  - {p} implied by: {', '.join(implyers)}")
     else:
-        print("  (no redundant directs found — check the slot data)")
+        print("  (no redundant directs found: check the slot data)")
 
 
 if __name__ == "__main__":

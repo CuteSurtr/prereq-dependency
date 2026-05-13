@@ -160,7 +160,7 @@ const DEPTH_OPTIONS: { value: number; label: string }[] = [
 ];
 
 const STANDING_OPTIONS: { value: Standing | ""; label: string }[] = [
-  { value: "", label: "—" },
+  { value: "", label: "-" },
   { value: "frosh", label: "Freshman" },
   { value: "soph", label: "Sophomore" },
   { value: "junior", label: "Junior" },
@@ -356,7 +356,7 @@ export default function App() {
             data-testid="completed-input"
             value={completedRaw}
             onChange={(e) => setCompletedRaw(e.target.value)}
-            placeholder="Paste a list — e.g. MATH 20A, MATH 20B, CSE 11"
+            placeholder="Paste a list: e.g. MATH 20A, MATH 20B, CSE 11"
             rows={4}
             style={{ fontFamily: "var(--font-mono)", fontSize: 12, lineHeight: 1.5 }}
           />
@@ -514,7 +514,7 @@ export default function App() {
               setDeptsRaw(e.target.value);
               commitDepartments(e.target.value);
             }}
-            placeholder='e.g. "CSE, MATH" — empty means all'
+            placeholder='e.g. "CSE, MATH": empty means all'
             style={{ fontFamily: "var(--font-mono)", fontSize: 12 }}
           />
           {profile.myDepartments.length > 0 && (
@@ -599,7 +599,7 @@ export default function App() {
         <div style={styles.legend}>
           <div style={styles.legendRow}>
             <div style={{ ...styles.legendSwatch, borderTopColor: "var(--color-purple)" }} />
-            <span style={{ color: "var(--color-label)" }}>AND — required</span>
+            <span style={{ color: "var(--color-label)" }}>AND: required</span>
           </div>
           <div style={styles.legendRow}>
             <div
@@ -609,7 +609,7 @@ export default function App() {
                 borderTopStyle: "dashed",
               }}
             />
-            <span style={{ color: "var(--color-label)" }}>OR — alternative path</span>
+            <span style={{ color: "var(--color-label)" }}>OR: alternative path</span>
           </div>
           <div style={styles.legendRow}>
             <div style={{ ...styles.legendSwatch, borderTopColor: "var(--color-success)" }} />

@@ -1,4 +1,4 @@
-"""Heuristically identify "foundation" courses — lower-division courses that
+"""Heuristically identify "foundation" courses: lower-division courses that
 many departments require as prereqs. These should stay visible even when the
 user enables a strict "hide out-of-department" filter.
 
