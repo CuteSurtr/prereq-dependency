@@ -3,7 +3,7 @@
 Visualize course prerequisites at UC San Diego. Search a course, see its upstream prereq tree and downstream unlocks. Paste your completed courses to highlight what you're eligible for next.
 
 **Live:** [https://cutesurtr.github.io/prereq-dependency/](https://cutesurtr.github.io/prereq-dependency/)
-**Stats:** 2,000+ courses · 3,259 prereq edges · 13 catalog pages · responsive (desktop + mobile drawer).
+**Stats:** 2,147 courses · ~4,260 prereq edges · 913 courses with factored OR-slot data · 13 catalog pages · responsive (desktop + mobile drawer).
 
 ## Architecture
 
@@ -37,7 +37,7 @@ flowchart LR
 - **Backend:** Python 3.11, FastAPI, SQLAlchemy, SQLite. The full DB is dumped to `frontend/public/graph.json` at build time so the deployed app is **pure static** (no serverless cold starts, no DB to provision). FastAPI still runs locally for dev / future iteration.
 - **Scraper:** `httpx` + `selectolax`, polite 1 req/sec rate limit, on-disk HTML cache.
 - **Parser:** Hand-rolled, ~63 unit tests; ambiguous strings flagged for LLM fallback (stub interface — wire up an Anthropic key later).
-- **Frontend:** Vite + React + TypeScript, [React Flow](https://reactflow.dev) for the graph. Stripe-inspired palette (Inter + JetBrains Mono, navy/purple, blue-tinted shadows). Responsive: desktop two-column, mobile slide-down drawer.
+- **Frontend:** Vite + React + TypeScript, [React Flow](https://reactflow.dev) for the graph, [dagre](https://github.com/dagrejs/dagre) (lazy-loaded) for the recursive chain layout. Stripe-inspired palette (Inter + JetBrains Mono, navy/purple, blue-tinted shadows). A small `ProfileContext` persists picks / mutes / department / toggle state in `localStorage` so a returning user keeps their saved view. Responsive: desktop two-column, mobile slide-down drawer.
 - **Deploy:** GitHub Pages (Vercel config available too).
 - **CI:** GitHub Actions — `ruff`, `mypy`, `pytest`, `tsc`, Playwright e2e.
 
@@ -162,25 +162,71 @@ The loader applies one more invariant: a group containing the course as its own 
 
 **Catalog HTML quirks.** The `Prerequisites:` marker appears in three different `<strong>`/`<em>` nestings across the live site (`<strong class="italic"><em>...`, `<strong><em><em>...`, `<em><strong>...`). The scraper regex tolerates any combination, recovering ~1,100 edges that were previously dropped. Course titles wrapped in `<span>` (like `MAE 30A. <span>Statics</span> (4)`) are extracted with a space separator so the header regex still matches.
 
+**Factored slots alongside DNF.** The parser also emits a *factored* projection of the AST as `prereq_slots`: a flat list of OR-slots that are AND-joined (e.g. CSE 100's 15 DNF groups collapse to three slots — `{CSE 21 ∨ MATH 154/158/184/188}`, `{CSE 12}`, `{CSE 15L ∨ CSE 29 ∨ ECE 15}`). 913 of 1,087 prereq-having courses (~84%) factor cleanly; the rest (genuinely nested OR-of-AND prose) fall back to the legacy DNF rendering. Slots are what drive the "1 OF N" join pills in the UI.
+
+## UI features
+
+The graph view is one focus course, with its prereqs on the left and unlocks on the right. Several toggles in the sidebar shape what gets drawn:
+
+- **OR-slot join pills.** For each multi-alternative slot, alternatives are bundled and a small `1 OF N` pill sits between them and the focus, so the user reads "pick one of these" instead of "5 unrelated arrows." Falls back to fan-in for unfactored prereqs.
+- **Branch picks.** Clicking an alternative picks it: the slot collapses to that one course (with a purple ✓ badge) and a `+N hidden · change` pill appears beside it. Clicking the picked alt again navigates into its page; clicking the pill clears the pick. Picks persist in `localStorage` and survive reloads. Muting a course also sweeps any stale pick that referenced it.
+- **Recursive upstream chain.** Sidebar select for `Direct prereqs only` (default) / `2 levels up` / `3 / 5 / Full upstream chain`. Anything above depth 1 lazy-loads `dagre` and lays the whole DAG out left-to-right with proper layering. Capped at 160 nodes (BENG 161B's full chain is 42; the cap is rarely hit). The lazy import keeps ~30 KB gz off the depth-1 critical path.
+- **My departments + spillover banner.** Type a comma-separated list (`CSE, MATH`) into the input. Out-of-department prereqs fade with a dashed gray border and a banner reads `+N prereqs outside your departments`. Counts collapse correctly when you pick an in-dept alternative.
+- **Hide redundant prereqs (cascading).** `frontend/src/cascade.ts` computes each course's *mandatory ancestors* — the set of courses you are guaranteed to take regardless of which OR alternative you pick. A direct prereq is "redundant" if some other direct already requires it transitively. 159 courses in the current catalog have at least one such redundancy (~234 pairs total); flipping the toggle drops them from the slot, often collapsing a "1 of 5" pill down to a single AND. Examples: PHYS 100B's `{MATH 20A/B/C, MATH 31BH, PHYS 100A}` slot reduces to just `PHYS 100A`; ECON 230 drops the early-series prereqs already implied by their successors.
+- **Hide out-of-dept (except STEM core).** A stricter pair to the dept filter. When on (and a department is set), out-of-department courses disappear entirely from slots, the chain BFS, and the unlock column — except for a curated [STEM foundation list](frontend/src/foundations.ts) (MATH 20 series, MATH 18, MATH 10/11/15A/31AH-CH, PHYS 1/2/4 sequences + labs, CHEM 6/40/41, BILD 1–4) that almost every STEM major touches. Intentionally *not* on the foundation list: CSE intro programming, COGS 18, MAE 8, DSC 10/20/30 — these are major-specific intros and should disappear from a strict view.
+- **Full-course mute.** "Hide this course" button in the focus card. The sidebar gains a muted-courses list with per-row Unhide and a bulk Unhide all. Muted courses are stripped from prereq slots, unlocks, and chain BFS; if a slot's alternatives are *entirely* muted the slot renders dimmed with strikethrough and a red `Unreachable — every option in at least one slot is hidden` banner fires so the user knows why.
+- **Completed courses → eligibility highlight.** Paste a list of codes you've already taken; downstream unlocks that become satisfiable light up green with a ✓ badge.
+
+### Filter pipeline
+
+Inside `Graph.tsx`'s render `useMemo`, each slot's alternatives flow through:
+
+```
+original slot
+  └─→ remove user-muted courses           (mute → render slot dimmed + Unreachable banner)
+       └─→ remove cascade-redundant       (toggle: hide redundant prereqs)
+            └─→ remove out-of-dept ¬foundation  (toggle: hide out-of-dept)
+                 └─→ if empty: drop slot from layout
+                      else: render with `1 OF N` pill or single AND edge
+```
+
+Picks for the slot are still keyed by the *original* slot index, so toggling filters on/off doesn't invalidate saved picks. The recursive chain BFS uses the union of muted + dept-hidden sets as its hidden-course predicate; cascade only applies at the focus level since it's a per-course property.
+
+### Audit tools
+
+Two stand-alone backend scripts inspect the catalog without running the frontend:
+
+```bash
+python -m backend.analyze_cascade      # finds courses with redundant directs
+python -m backend.analyze_foundations  # ranks cross-department prereq workhorses
+```
+
+The foundation list in `frontend/src/foundations.ts` was hand-curated from the second script's output.
+
 ## Data model
 
 Two tables.
 
 ```sql
-courses(code PK, title, department, units, description, raw_prereq_text, notes)
+courses(code PK, title, department, units, description,
+        raw_prereq_text, notes, prereq_slots_json)
 prereqs(id PK, course_code FK, group_id, required_course_code FK, prereq_type)
 -- Within a group_id: AND. Across group_ids for the same course: OR.
 ```
 
 This models `(MATH 20A and MATH 20B) or (MATH 10A and MATH 10B)` as group 0 = {20A, 20B}, group 1 = {10A, 10B}.
 
+`prereq_slots_json` is the factored AND-of-OR projection of the same prereq AST (`[["CSE 21","MATH 154",...], ["CSE 12"], ["CSE 15L","CSE 29","ECE 15"]]` for CSE 100). It's nullable — only present when the parser was able to factor the prose into flat slots. The frontend prefers it for rendering and falls back to `prereq_groups` (the DNF) when null.
+
 ## Next steps
 
-- Wire up Anthropic Haiku LLM fallback for unparsed prereq strings (interface is stubbed in `backend/llm_fallback.py`).
+- Wire up Anthropic Haiku LLM fallback for unparsed prereq strings (interface is stubbed in `backend/llm_fallback.py`). Would also unblock factored slots for the remaining ~16% of unfactored courses.
 - Add more catalog pages beyond the current set.
+- **Pick-aware cascade.** Today the cascade analysis is conservative — a prereq is only flagged as redundant when *every* OR alternative implies it. Folding the user's current picks into the mandatory-ancestor calculation would let cascade catch cases like CSE 120: "CSE 29 is implied by CSE 30 *given that you picked CSE 29 as CSE 30's alternative.*"
 - Add `units` to the completed-courses panel so users can track progress toward graduation.
 - Quarter-aware scheduling (typically-offered-in-Fall vs. Winter vs. Spring) — this requires a different data source than the catalog.
 - Schema-aware admin endpoint so non-engineers can correct misparsed prereqs.
+- Shareable URLs that encode picks + mutes + toggle state in the hash, so a student can DM their planned path to a friend without losing localStorage.
 
 ## Anti-goals
 
