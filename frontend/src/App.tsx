@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Graph } from "./Graph";
 import { loadGraph } from "./data";
 import { useProfile } from "./ProfileContext";
@@ -197,6 +197,8 @@ export default function App() {
     profile.myDepartments.join(", "),
   );
   const [majorPickerInput, setMajorPickerInput] = useState<string>("");
+  const [majorPickerOpen, setMajorPickerOpen] = useState<boolean>(false);
+  const majorPickerRef = useRef<HTMLDivElement>(null);
   const [majors, setMajors] = useState<MajorEntry[]>([]);
   const pickCount = totalPicks(profile);
   const mutedSet = useMemo(() => new Set(profile.muted), [profile.muted]);
@@ -209,6 +211,40 @@ export default function App() {
   useEffect(() => {
     loadMajors().then(setMajors).catch(() => setMajors([]));
   }, []);
+
+  // Close the major picker on outside click.
+  useEffect(() => {
+    if (!majorPickerOpen) return;
+    const onDocMouseDown = (e: MouseEvent) => {
+      if (
+        majorPickerRef.current &&
+        !majorPickerRef.current.contains(e.target as Node)
+      ) {
+        setMajorPickerOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", onDocMouseDown);
+    return () => document.removeEventListener("mousedown", onDocMouseDown);
+  }, [majorPickerOpen]);
+
+  // Filter the major list by code, name, or department (case-insensitive).
+  // When the input is empty we still show all majors so users can browse.
+  // Already-picked codes are dropped so they don't clutter the menu.
+  const pickedMajorSet = useMemo(
+    () => new Set(profile.myMajorCodes),
+    [profile.myMajorCodes],
+  );
+  const filteredMajors = useMemo(() => {
+    const q = majorPickerInput.trim().toLowerCase();
+    const base = majors.filter((m) => !pickedMajorSet.has(m.code));
+    if (!q) return base;
+    return base.filter(
+      (m) =>
+        m.code.toLowerCase().includes(q) ||
+        m.name.toLowerCase().includes(q) ||
+        m.department.toLowerCase().includes(q),
+    );
+  }, [majors, majorPickerInput, pickedMajorSet]);
 
   const commitDepartments = useCallback(
     (text: string) => {
@@ -506,57 +542,121 @@ export default function App() {
               })}
             </div>
           )}
-          <input
-            id="major-input"
-            data-testid="major-input"
-            list="majors-datalist"
-            value={majorPickerInput}
-            onChange={(e) => {
-              const v = e.target.value;
-              setMajorPickerInput(v);
-              // Picking from the datalist sets the input to the option's value
-              // (the code). Detect a successful match and add to chips.
-              if (majorByCode.has(v.toUpperCase())) {
-                addMajorCode(v);
+          <div ref={majorPickerRef} style={{ position: "relative" }}>
+            <input
+              id="major-input"
+              data-testid="major-input"
+              value={majorPickerInput}
+              onFocus={() => setMajorPickerOpen(true)}
+              onChange={(e) => {
+                setMajorPickerInput(e.target.value);
+                setMajorPickerOpen(true);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  // Prefer the top filtered result; fall back to raw text.
+                  if (filteredMajors.length > 0) {
+                    addMajorCode(filteredMajors[0].code);
+                  } else {
+                    addMajorCode(majorPickerInput);
+                  }
+                } else if (e.key === "Escape") {
+                  setMajorPickerOpen(false);
+                }
+              }}
+              placeholder={
+                majors.length
+                  ? "Search by name or code (e.g. 'Probability' or 'CS27')"
+                  : "Code only (e.g. CS27)"
               }
-            }}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                e.preventDefault();
-                addMajorCode(majorPickerInput);
-              }
-            }}
-            placeholder={
-              majors.length
-                ? "Search by name or code (e.g. 'Computer' or 'CS27')"
-                : "Code only (e.g. CS27)"
-            }
-            style={{ fontFamily: "var(--font-mono)", fontSize: 12 }}
-          />
-          {majors.length > 0 && (
-            <datalist id="majors-datalist">
-              {majors.map((m) => (
-                <option
-                  key={m.code}
-                  value={m.code}
-                  label={`${m.name} - ${m.department}`}
-                />
-              ))}
-            </datalist>
-          )}
-          {majorPickerInput.trim().length > 0 &&
-            !majorByCode.has(majorPickerInput.toUpperCase()) &&
-            !/^[A-Z]{2}\s*\d{2}$/i.test(majorPickerInput.trim()) && (
-              <span
+              style={{ fontFamily: "var(--font-mono)", fontSize: 12 }}
+            />
+            {majorPickerOpen && majors.length > 0 && (
+              <ul
+                role="listbox"
                 style={{
-                  ...styles.recognizedCount,
+                  position: "absolute",
+                  top: "100%",
+                  left: 0,
+                  right: 0,
                   marginTop: 4,
-                  color: "var(--color-body)",
+                  maxHeight: 260,
+                  overflowY: "auto",
+                  background: "var(--color-bg)",
+                  border: "1px solid var(--color-border)",
+                  borderRadius: "var(--radius-md)",
+                  boxShadow: "var(--shadow-elevated)",
+                  listStyle: "none",
+                  padding: 0,
+                  zIndex: 20,
                 }}
+                className="scroll-y"
               >
-                Pick a result, or press Enter to add as a custom code.
-              </span>
+                {filteredMajors.length === 0 ? (
+                  <li
+                    style={{
+                      padding: "10px 12px",
+                      fontSize: 12,
+                      color: "var(--color-body)",
+                    }}
+                  >
+                    No match. Press Enter to add{" "}
+                    <code style={{ fontFamily: "var(--font-mono)" }}>
+                      {majorPickerInput.toUpperCase()}
+                    </code>{" "}
+                    as a custom code.
+                  </li>
+                ) : (
+                  filteredMajors.map((m) => (
+                    <li key={m.code}>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          addMajorCode(m.code);
+                          setMajorPickerOpen(false);
+                        }}
+                        style={{
+                          display: "block",
+                          width: "100%",
+                          textAlign: "left",
+                          padding: "8px 12px",
+                          border: "none",
+                          background: "transparent",
+                          cursor: "pointer",
+                          fontSize: 12,
+                          lineHeight: 1.35,
+                        }}
+                        className="search-result-btn"
+                      >
+                        <span
+                          style={{
+                            fontFamily: "var(--font-mono)",
+                            color: "var(--color-purple)",
+                            fontWeight: 500,
+                            marginRight: 8,
+                          }}
+                        >
+                          {m.code}
+                        </span>
+                        <span style={{ color: "var(--color-label)" }}>{m.name}</span>
+                        <div
+                          style={{
+                            fontSize: 10.5,
+                            color: "var(--color-body)",
+                            marginTop: 2,
+                            letterSpacing: "0.02em",
+                          }}
+                        >
+                          {m.department}
+                        </div>
+                      </button>
+                    </li>
+                  ))
+                )}
+              </ul>
             )}
+          </div>
         </div>
 
         <div style={{ ...styles.field, marginBottom: 14, gap: 6 }}>

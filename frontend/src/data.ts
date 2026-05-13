@@ -35,6 +35,21 @@ export function loadMajors(): Promise<MajorEntry[]> {
     const url = `${import.meta.env.BASE_URL}majors.json`.replace(/\/+/g, "/");
     cachedMajors = fetch(url)
       .then((r) => (r.ok ? (r.json() as Promise<MajorEntry[]>) : []))
+      .then((rows) => {
+        // The registrar's table assigns the same plan code to multiple
+        // college-specific honors programs (e.g. UN52 appears once for
+        // Marshall and again for Roosevelt). Filter to one row per code so
+        // React's reconciler isn't fed duplicate keys, which was leaking
+        // stale UN52 entries into every filtered result.
+        const seen = new Set<string>();
+        const out: MajorEntry[] = [];
+        for (const m of rows) {
+          if (seen.has(m.code)) continue;
+          seen.add(m.code);
+          out.push(m);
+        }
+        return out;
+      })
       .catch(() => []);
   }
   return cachedMajors;
