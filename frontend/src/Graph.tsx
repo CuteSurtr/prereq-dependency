@@ -1,5 +1,5 @@
-import dagre from "dagre";
-import { useEffect, useMemo } from "react";
+import type DagreType from "dagre";
+import { useEffect, useMemo, useState } from "react";
 import ReactFlow, {
   Background,
   BackgroundVariant,
@@ -26,6 +26,7 @@ type CourseNodeData = {
   picked?: boolean;
   pickable?: boolean;
   outOfDept?: boolean;
+  mutedAlt?: boolean;
   onClick: (code: string) => void;
   onPickInstead?: () => void;
 };
@@ -61,6 +62,7 @@ function CourseNode({ data }: NodeProps<CourseNodeData>) {
   const isEligible = data.eligible && !isFocus;
   const isPicked = data.picked === true;
   const isOutOfDept = data.outOfDept === true && !isFocus;
+  const isMutedAlt = data.mutedAlt === true;
 
   const bg = isCompleted
     ? COLORS.successBg
@@ -101,6 +103,8 @@ function CourseNode({ data }: NodeProps<CourseNodeData>) {
   const titleColor = isFocus ? COLORS.label : COLORS.body;
 
   const handleClick = () => {
+    if (isMutedAlt) return;
+    if (isFocus) return;
     if (data.onPickInstead) {
       data.onPickInstead();
     } else {
@@ -108,15 +112,24 @@ function CourseNode({ data }: NodeProps<CourseNodeData>) {
     }
   };
 
+  const cardOpacity = isMutedAlt ? 0.4 : isOutOfDept ? 0.75 : 1;
+  const cardCursor = isMutedAlt
+    ? "not-allowed"
+    : isFocus
+      ? "default"
+      : "pointer";
+
   return (
     <div
       onClick={handleClick}
       title={
-        data.pickable
-          ? isPicked
-            ? "Picked — click to keep, or pick another alternative"
-            : "Click to pick this alternative"
-          : undefined
+        isMutedAlt
+          ? "Hidden — unhide from the sidebar to use this alternative"
+          : data.pickable
+            ? isPicked
+              ? "Picked — click to keep, or pick another alternative"
+              : "Click to pick this alternative"
+            : undefined
       }
       style={{
         padding: "10px 14px",
@@ -125,17 +138,18 @@ function CourseNode({ data }: NodeProps<CourseNodeData>) {
         background: bg,
         minWidth: 140,
         maxWidth: 220,
-        cursor: "pointer",
+        cursor: cardCursor,
         boxShadow: shadow,
         transition: "transform 120ms ease, box-shadow 120ms ease",
         position: "relative",
-        opacity: isOutOfDept ? 0.75 : 1,
+        opacity: cardOpacity,
+        textDecoration: isMutedAlt ? "line-through" : undefined,
       }}
       onMouseEnter={(e) => {
-        e.currentTarget.style.transform = "translateY(-1px)";
+        if (!isMutedAlt && !isFocus) e.currentTarget.style.transform = "translateY(-1px)";
       }}
       onMouseLeave={(e) => {
-        e.currentTarget.style.transform = "none";
+        if (!isMutedAlt && !isFocus) e.currentTarget.style.transform = "none";
       }}
     >
       <Handle type="target" position={Position.Left} style={{ visibility: "hidden" }} />
@@ -384,11 +398,27 @@ function buildUpstreamChain(
   return { courseCodes: Array.from(courseCodes), edges, truncated };
 }
 
+// dagre is lazy-loaded the first time the user opens the chain view. Keeps
+// ~33KB of layout code out of the depth=1 critical path.
+let dagreModule: typeof DagreType | null = null;
+let dagreLoadPromise: Promise<typeof DagreType> | null = null;
+function loadDagre(): Promise<typeof DagreType> {
+  if (dagreModule) return Promise.resolve(dagreModule);
+  if (!dagreLoadPromise) {
+    dagreLoadPromise = import("dagre").then((m) => {
+      dagreModule = (m.default ?? (m as unknown as typeof DagreType));
+      return dagreModule;
+    });
+  }
+  return dagreLoadPromise;
+}
+
 function layoutChain(
   courseCodes: string[],
   edges: ChainEdge[],
-): Record<string, { x: number; y: number }> {
-  const g = new dagre.graphlib.Graph();
+): Record<string, { x: number; y: number }> | null {
+  if (!dagreModule) return null;
+  const g = new dagreModule.graphlib.Graph();
   g.setGraph({ rankdir: "LR", ranksep: 90, nodesep: 18, marginx: 20, marginy: 20 });
   g.setDefaultEdgeLabel(() => ({}));
   for (const code of courseCodes) {
@@ -401,7 +431,7 @@ function layoutChain(
     seenEdgePairs.add(key);
     g.setEdge(e.source, e.target);
   }
-  dagre.layout(g);
+  dagreModule.layout(g);
   const positions: Record<string, { x: number; y: number }> = {};
   for (const code of courseCodes) {
     const n = g.node(code);
@@ -422,11 +452,18 @@ function GraphInner({
 }: GraphProps) {
   const reactFlow = useReactFlow();
   const { profile, setPick, clearPick } = useProfile();
+  const [dagreReady, setDagreReady] = useState<boolean>(() => dagreModule !== null);
+
+  useEffect(() => {
+    if (expandDepth > 1 && !dagreReady) {
+      loadDagre().then(() => setDagreReady(true));
+    }
+  }, [expandDepth, dagreReady]);
 
   useEffect(() => {
     const t = setTimeout(() => reactFlow.fitView({ padding: 0.2, duration: 250 }), 50);
     return () => clearTimeout(t);
-  }, [focusCode, expandDepth, reactFlow]);
+  }, [focusCode, expandDepth, dagreReady, reactFlow]);
 
   const mutedSet = useMemo(() => new Set(profile.muted), [profile.muted]);
   const myDeptSet = useMemo(
@@ -493,6 +530,18 @@ function GraphInner({
         expandDepth,
       );
       const positions = layoutChain(courseCodes, chainEdges);
+      if (!positions) {
+        // dagre not loaded yet; render nothing until the lazy import resolves.
+        return {
+          nodes: [],
+          edges: [],
+          hiddenUnlockCount: 0,
+          chainTruncated: false,
+          chainNodeCount: 0,
+          unreachable: false,
+          spilloverCount: 0,
+        };
+      }
       let chainSpillover = 0;
 
       for (const code of courseCodes) {
@@ -682,7 +731,12 @@ function GraphInner({
         const slotCenter = slotTop + slotH / 2 - ROW_H / 2;
         const picked = picksForFocus[slotIdx];
         const isPicked = !slotMuted && alts.length > 1 && picked && alts.includes(picked);
-        for (const code of alts) {
+        // Spillover only counts the alternatives the user is actually planning
+        // to take: a picked slot contributes just the picked code; an
+        // un-picked slot contributes every (un-muted) alternative because
+        // any of them might be chosen.
+        const altsForSpillover = isPicked ? [picked as string] : alts;
+        for (const code of altsForSpillover) {
           if (
             !slotMuted &&
             !mutedSet.has(code) &&
@@ -704,14 +758,14 @@ function GraphInner({
         } else if (isPicked) {
           // Collapsed picked slot: only the picked alt + a "+N hidden" badge
           // (positioned below the card) that clears the pick when clicked.
+          // The picked alt navigates on click (normal CourseNode behavior);
+          // the badge is the affordance to undo the pick.
           const code = picked as string;
           const altY = slotCenter;
           if (!seenCourseNode.has(code)) {
             nodes.push(
               mkCourseNode(code, COL_X.prereq, altY, "prereq", {
                 picked: true,
-                pickable: true,
-                onPickInstead: () => clearPick(focusCode, slotIdx),
               }),
             );
             seenCourseNode.add(code);
@@ -729,13 +783,19 @@ function GraphInner({
           edges.push(mkAndEdge(`e-slot${slotIdx}-picked-focus`, `c:${code}`));
         } else {
           // Expanded multi-alt slot: stack alternatives, route through join.
+          // When the slot is fully muted, render the original alts dimmed and
+          // strike-through, drop pick handlers, and label the join with the
+          // hidden count so the user knows why the focus is unreachable.
           alts.forEach((code, j) => {
             const y = slotTop + j * ROW_H;
             if (!seenCourseNode.has(code)) {
               nodes.push(
                 mkCourseNode(code, COL_X.prereq, y, "prereq", {
-                  pickable: true,
-                  onPickInstead: () => setPick(focusCode, slotIdx, code),
+                  pickable: !slotMuted,
+                  mutedAlt: slotMuted,
+                  onPickInstead: slotMuted
+                    ? undefined
+                    : () => setPick(focusCode, slotIdx, code),
                 }),
               );
               seenCourseNode.add(code);
@@ -748,11 +808,15 @@ function GraphInner({
                 stroke: COLORS.purpleLight,
                 strokeWidth: 1.2,
                 strokeDasharray: "4,4",
+                opacity: slotMuted ? 0.5 : 1,
               },
             });
           });
+          const joinLabel = slotMuted
+            ? `${alts.length} hidden`
+            : `1 of ${alts.length}`;
           nodes.push(
-            mkJoinNode(`slot:${slotIdx}`, COL_X.join, slotCenter, `1 of ${alts.length}`),
+            mkJoinNode(`slot:${slotIdx}`, COL_X.join, slotCenter, joinLabel),
           );
           edges.push(mkAndEdge(`e-slot${slotIdx}-join-focus`, `slot:${slotIdx}`));
         }
@@ -865,13 +929,12 @@ function GraphInner({
     completed,
     onSelectCourse,
     profile.picks,
-    profile.muted,
-    profile.myDepartments,
     mutedSet,
     myDeptSet,
     setPick,
     clearPick,
     expandDepth,
+    dagreReady,
   ]);
 
   return (
@@ -975,8 +1038,11 @@ function GraphInner({
                 fontVariantNumeric: "tabular-nums",
               }}
             >
-              +{spilloverCount} prereq{spilloverCount === 1 ? "" : "s"} outside
-              your departments
+              +{spilloverCount}{" "}
+              {chainNodeCount > 0
+                ? `course${spilloverCount === 1 ? "" : "s"}`
+                : `prereq${spilloverCount === 1 ? "" : "s"}`}{" "}
+              outside your departments
             </div>
           )}
         </div>

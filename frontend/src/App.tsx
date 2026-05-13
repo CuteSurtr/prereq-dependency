@@ -167,7 +167,6 @@ export default function App() {
   const [completedRaw, setCompletedRaw] = useState("");
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [expandDepth, setExpandDepth] = useState<number>(1);
-  const [deptsRaw, setDeptsRaw] = useState<string>("");
   const {
     profile,
     clearAllPicks,
@@ -176,15 +175,13 @@ export default function App() {
     clearAllMutes,
     setMyDepartments,
   } = useProfile();
+  // Seed the departments input synchronously from the persisted profile so
+  // the input never flickers empty on first paint.
+  const [deptsRaw, setDeptsRaw] = useState<string>(() =>
+    profile.myDepartments.join(", "),
+  );
   const pickCount = totalPicks(profile);
   const mutedSet = useMemo(() => new Set(profile.muted), [profile.muted]);
-
-  // Seed departments input from persisted state on first load.
-  useEffect(() => {
-    setDeptsRaw(profile.myDepartments.join(", "));
-    // Only on mount: subsequent edits flow user-input -> profile, not back.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   const commitDepartments = useCallback(
     (text: string) => {

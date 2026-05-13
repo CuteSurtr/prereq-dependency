@@ -61,9 +61,33 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const muteCourse = useCallback((code: string) => {
-    setProfile((p) =>
-      p.muted.includes(code) ? p : { ...p, muted: [...p.muted, code] },
-    );
+    setProfile((p) => {
+      if (p.muted.includes(code)) return p;
+      // Sweep any pick that referenced the now-muted course so it doesn't
+      // silently come back when the user unmutes.
+      const newPicks: typeof p.picks = {};
+      let picksChanged = false;
+      for (const [courseCode, slots] of Object.entries(p.picks)) {
+        const kept: Record<number, string> = {};
+        for (const [slotIdx, pickedCode] of Object.entries(slots)) {
+          if (pickedCode === code) {
+            picksChanged = true;
+            continue;
+          }
+          kept[Number(slotIdx)] = pickedCode;
+        }
+        if (Object.keys(kept).length > 0) {
+          newPicks[courseCode] = kept;
+        } else if (Object.keys(slots).length > 0) {
+          picksChanged = true;
+        }
+      }
+      return {
+        ...p,
+        muted: [...p.muted, code],
+        picks: picksChanged ? newPicks : p.picks,
+      };
+    });
   }, []);
 
   const unmuteCourse = useCallback((code: string) => {
