@@ -4,7 +4,7 @@ Search any UC San Diego course and see its upstream prerequisite tree, downstrea
 
 **Live:** [https://cutesurtr.github.io/prereq-dependency/](https://cutesurtr.github.io/prereq-dependency/)
 
-**Stats:** 2,147 courses, ~4,260 prereq edges, 13 catalog pages. 913 courses ship factored OR-slot data (the rest fall back to DNF). 1,140 carry a class-standing marker. 31 carry an explicit major-code allow-list. Bundle is ~135 KB gzipped, lazy-loads ~31 KB of layout code only when the chain view is opened.
+Covers MATH, PHYS, CHEM, the BIOL family (BIBC / BICD / BIEB / BILD / BIMM / BIPN / BISP), CSE, ECE, MAE, BENG, NANO, SE, ECON, DSC, COGS. The recursive chain layout lazy-loads only when you open it, so the depth-1 view stays light.
 
 ## What you can do
 
@@ -18,7 +18,7 @@ The sidebar drives everything, and every choice persists across sessions in `loc
 
 **Shape the OR-prereqs**
 
-* Multi-alternative slots render as a "1 of N" join pill with a single AND edge to the focus. CSE 100's notorious 15 DNF combinations collapse to 3 clean slots.
+* Multi-alternative slots render as a "1 of N" join pill with a single AND edge to the focus. CSE 100's notorious DNF combinations collapse to three readable slots.
 * Click an alternative to pick it. The slot collapses to your choice with a purple checkmark, plus a "+N hidden change" pill that undoes the pick. A second click on the picked card navigates to that course.
 * "Hide this course" on the focus card removes it from every slot, unlock list, and chain across the graph. The sidebar muted list has per-row Unhide and bulk Unhide all.
 
@@ -27,8 +27,8 @@ The sidebar drives everything, and every choice persists across sessions in `loc
 * **My departments**: type a comma-separated list (`CSE, MATH`). Out-of-dept prereqs fade.
 * **Hide out-of-dept (except STEM core)**: stricter, removes non-foundation out-of-dept courses entirely. The curated [foundation list](frontend/src/foundations.ts) (MATH 20 series, PHYS 1/2/4, CHEM 6/40/41, BILD 1-4, etc.) is exempt.
 * **My class standing** + **Hide courses above my standing**: gates by frosh / soph / junior / senior / grad. Courses with a standing requirement carry a `Jr+ / Sr+ / Grad` corner badge regardless of the filter.
-* **My major code(s)** + **Hide courses my major can't take**: 31 courses with explicit major-code allow-lists. Eligible courses show a gray `Majors` badge; locked ones show a red `Major-locked`.
-* **Hide redundant prereqs (cascading)**: drops directly-listed prereqs that some other direct prereq already requires transitively. PHYS 100B's `{MATH 20A, MATH 20B, MATH 20C, MATH 31BH, PHYS 100A}` slot reduces to just `PHYS 100A`. 159 courses in the catalog benefit.
+* **My major code(s)** + **Hide courses my major can't take**: courses with explicit major-code allow-lists (e.g. CSE 197 is `CS25 / CS26 / CS27 / CS29` only). Eligible courses show a gray `Majors` badge, locked ones show a red `Major-locked`.
+* **Hide redundant prereqs (cascading)**: drops directly-listed prereqs that some other direct prereq already requires transitively. PHYS 100B's `{MATH 20A, MATH 20B, MATH 20C, MATH 31BH, PHYS 100A}` slot reduces to just `PHYS 100A`.
 
 ## Architecture
 
@@ -51,7 +51,7 @@ flowchart LR
     Catalog(["catalog.ucsd.edu"]) -->|httpx, 1 req/sec| Scraper["<b>Scraper</b><br/>disk cache"]
     Scraper -->|raw prereq text| Parser["<b>Parser</b><br/>rule-based<br/>(LLM fallback stub)"]
     Parser -->|courses + edges + slots| DB[("<b>SQLite</b><br/>courses.db")]
-    DB -->|export_static.py| JSON[("<b>graph.json</b><br/>~1.5 MB, ~270 KB gz")]
+    DB -->|export_static.py| JSON[("<b>graph.json</b><br/>shipped to the frontend")]
     JSON --> FE["<b>React + React Flow</b><br/>static, GitHub Pages"]
     DB -.->|local dev| API["<b>FastAPI</b><br/>uvicorn backend.api:app"]
     User((User)) --> FE
@@ -59,8 +59,8 @@ flowchart LR
 
 ## Stack
 
-* **Scraper.** `httpx` + `selectolax`, 1 req/sec polite rate limit, on-disk HTML cache. Catalog quirks handled: the `Prerequisites:` marker appears in three different `<strong>`/`<em>` nestings across the live site; the regex tolerates all of them and recovers ~1,100 edges that older scrapers dropped.
-* **Parser.** Hand-rolled, 80 unit tests. Produces DNF groups, factored AND-of-OR slots, class-standing markers, major-code restrictions, and prose-extracted notes. Ambiguous prereq strings are flagged for an LLM fallback (interface stubbed in `backend/llm_fallback.py`).
+* **Scraper.** `httpx` + `selectolax`, polite 1 req/sec rate limit, on-disk HTML cache. The `Prerequisites:` marker appears in several different `<strong>`/`<em>` nestings across the live site; the regex tolerates all of them.
+* **Parser.** Hand-rolled, well-tested. Produces DNF groups, factored AND-of-OR slots, class-standing markers, major-code restrictions, and prose-extracted notes. Ambiguous prereq strings are flagged for an LLM fallback (interface stubbed in `backend/llm_fallback.py`).
 * **Backend.** Python 3.11, FastAPI, SQLAlchemy, SQLite. The full DB exports to `frontend/public/graph.json` at build time so the deployed app is pure static (no serverless cold starts, no DB to provision). FastAPI is dev-only.
 * **Frontend.** Vite + React + TypeScript + [React Flow](https://reactflow.dev), plus [dagre](https://github.com/dagrejs/dagre) (lazy-loaded only when the chain view opens) for layered DAG layout. A small `ProfileContext` persists picks, mutes, departments, major codes, standing, and every filter toggle in `localStorage`. Stripe-inspired palette (Inter + JetBrains Mono, navy / purple, blue-tinted shadows). Responsive: desktop two-column, mobile slide-down drawer.
 * **Deploy.** GitHub Pages by default; `vercel.json` is also wired up.
@@ -131,7 +131,7 @@ git push
 
 [`vercel.json`](vercel.json) is wired up too. `vercel link` once, then push. The `ignoreCommand` skips deploys when only unrelated paths change.
 
-The deploy is pure static. The full ~2,147 courses and ~4,260 prereq edges fit in ~1.5 MB of JSON (~270 KB gzipped) and load in one fetch.
+The deploy is pure static. The full course catalog and prereq graph load in one fetch.
 
 ## Parsing strategy
 
@@ -155,7 +155,7 @@ UCSD prereq prose is messier than it looks. The parser is rule-based and runs in
    * A bare `,` in a regular list adopts the kind of the next conjunction.
 9. **Recursive-descent parse** to an AST with three precedence levels (TOP_*, OR, AND), then produce two projections:
    * **DNF groups** for the eligibility check (a list of AND-bundles; one bundle satisfies the prereq).
-   * **Factored slots** for visualization (a flat list of OR-slots that are AND-joined). 913 of 1,087 prereq-having courses (~84%) factor cleanly; the rest fall back to DNF rendering.
+   * **Factored slots** for visualization (a flat list of OR-slots that are AND-joined). Most courses factor cleanly; the rest fall back to DNF rendering.
 
 After the parser, the loader applies one more invariant: a group containing the course as its own prereq, or a course that doesn't exist in the scraped data, is dropped *as a whole* (not just the offending edge). Dropping a single edge from an AND group leaves a strict subset that's too easy to satisfy. For example, `(MAE 101A or CENG 101A) AND (MAE 11 or MAE 110A or CENG 102)` would otherwise produce a group `{MAE 11}` alone, which contradicts the original intent.
 
@@ -243,15 +243,11 @@ So `(MATH 20A and MATH 20B) or (MATH 10A and MATH 10B)` lives as group 0 = `{20A
 
 ## Scope
 
-Catalog pages currently scraped: MATH, PHYS, CHEM, BIOL (covers BIBC / BICD / BIEB / BILD / BIMM / BIPN / BISP), CSE, ECE, MAE, BENG, NANO, SE, ECON, DSC, COGS.
-
-Adding another department is a one-line addition in [`SCRAPED_CATALOGS`](backend/scraper.py).
-
-Cross-department prereqs are handled naturally: a BICD course requiring CHEM 7L resolves correctly because edges are keyed by course code, not department. MAE 20A's PHYS prereqs unlock physics paths; CSE 100's MATH alternatives all resolve.
+Adding another catalog page is a one-line addition in [`SCRAPED_CATALOGS`](backend/scraper.py). Cross-department prereqs are handled naturally: a BICD course requiring CHEM 7L resolves because edges are keyed by course code, not department. MAE 20A's PHYS prereqs unlock physics paths; CSE 100's MATH alternatives all resolve.
 
 ## Next steps
 
-* Wire up the Anthropic Haiku LLM fallback for unparsed prereq strings (interface is stubbed in `backend/llm_fallback.py`). Would also unblock factored slots for the remaining ~16% of unfactored courses.
+* Wire up the Anthropic Haiku LLM fallback for unparsed prereq strings (interface is stubbed in `backend/llm_fallback.py`). Would also unblock factored slots for the courses the rule-based parser currently can't factor.
 * Add more catalog pages beyond the current set.
 * **Pick-aware cascade.** The cascade analysis is conservative today: a prereq is only flagged as redundant when *every* OR alternative implies it. Folding the user's current picks into the mandatory-ancestor calculation would let cascade catch cases like CSE 120 ("CSE 29 is implied by CSE 30 given that you picked CSE 29 as CSE 30's alternative.").
 * Add `units` to the completed-courses panel so users can track progress toward graduation.
