@@ -19,6 +19,9 @@ export type Course = {
   // (e.g. "graduate standing", "junior or senior standing") plus course-number
   // convention (200+ = graduate). Null = no detectable restriction.
   required_standing: Standing | null;
+  // Major codes the course is restricted to (e.g. ["CS25", "CS26", "CS27"]).
+  // Null when the catalog lists no explicit major-code restriction.
+  restricted_to_majors: string[] | null;
 };
 
 export type GraphData = {

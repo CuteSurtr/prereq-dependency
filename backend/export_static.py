@@ -45,6 +45,9 @@ def export(db_path: Path = DB_PATH, out_path: Path = OUT_PATH) -> dict[str, int]
             prereq_slots: list[list[str]] | None = None
             if c.prereq_slots_json:
                 prereq_slots = json.loads(c.prereq_slots_json)
+            restricted_to_majors: list[str] | None = None
+            if c.restricted_to_majors_json:
+                restricted_to_majors = json.loads(c.restricted_to_majors_json)
             courses_out[c.code] = {
                 "code": c.code,
                 "title": c.title,
@@ -58,6 +61,7 @@ def export(db_path: Path = DB_PATH, out_path: Path = OUT_PATH) -> dict[str, int]
                 "coreq_groups": coreq_groups,
                 "recommended_groups": recommended_groups,
                 "required_standing": c.required_standing,
+                "restricted_to_majors": restricted_to_majors,
             }
 
         for e in edges:

@@ -32,6 +32,10 @@ type CourseNodeData = {
   mutedAlt?: boolean;
   /** Course's minimum class standing, when present. Drives the corner badge. */
   requiredStanding?: "junior" | "senior" | "graduate" | null;
+  /** Course's major-code restriction list, if any. Drives the major badge. */
+  restrictedToMajors?: string[] | null;
+  /** True when the user has set major codes but none satisfy this course. */
+  majorIneligible?: boolean;
   onClick: (code: string) => void;
   onPickInstead?: () => void;
 };
@@ -190,6 +194,32 @@ function CourseNode({ data }: NodeProps<CourseNodeData>) {
             : data.requiredStanding === "senior"
               ? "Sr+"
               : "Jr+"}
+        </div>
+      )}
+      {data.restrictedToMajors && data.restrictedToMajors.length > 0 && !isFocus && (
+        <div
+          style={{
+            position: "absolute",
+            top: data.requiredStanding ? 12 : -7,
+            left: 8,
+            padding: "1px 6px",
+            background: data.majorIneligible ? "#fff0f4" : "#ffffff",
+            border: `1px solid ${
+              data.majorIneligible ? "rgba(234, 34, 97, 0.4)" : COLORS.border
+            }`,
+            borderRadius: 999,
+            fontSize: 9,
+            fontWeight: 500,
+            color: data.majorIneligible ? "#a12252" : COLORS.body,
+            letterSpacing: "0.04em",
+            textTransform: "uppercase",
+            fontFamily:
+              "'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif",
+            lineHeight: 1.4,
+          }}
+          title={`Majors only: ${data.restrictedToMajors.join(", ")}`}
+        >
+          {data.majorIneligible ? "Major-locked" : "Majors"}
         </div>
       )}
       {isCompleted && (
@@ -546,6 +576,35 @@ function GraphInner({
     return hidden;
   }, [graph, profile.myStanding, profile.hideAboveStanding]);
 
+  // Major hide: when the user has set major codes and toggled the filter,
+  // courses restricted to a major list with no overlap disappear.
+  const myMajorSet = useMemo(
+    () => new Set(profile.myMajorCodes),
+    [profile.myMajorCodes],
+  );
+  const majorHiddenSet = useMemo(() => {
+    if (!profile.hideMajorRestricted || myMajorSet.size === 0) {
+      return new Set<string>();
+    }
+    const hidden = new Set<string>();
+    for (const [code, c] of Object.entries(graph.courses)) {
+      const restriction = c.restricted_to_majors;
+      if (!restriction || restriction.length === 0) continue;
+      if (!restriction.some((m) => myMajorSet.has(m))) {
+        hidden.add(code);
+      }
+    }
+    return hidden;
+  }, [graph, myMajorSet, profile.hideMajorRestricted]);
+  // For badge coloring: a course is "ineligible-by-major" when the user has
+  // set major codes and the course's restriction excludes them (independent
+  // of whether the hide toggle is on).
+  const isMajorIneligible = (course: Course | undefined): boolean => {
+    if (!course || !course.restricted_to_majors) return false;
+    if (myMajorSet.size === 0) return false;
+    return !course.restricted_to_majors.some((m) => myMajorSet.has(m));
+  };
+
   const {
     nodes,
     edges,
@@ -597,16 +656,19 @@ function GraphInner({
 
     // ── Chain view (depth > 1) ──
     if (expandDepth > 1) {
-      // For the chain BFS, combine user mutes with the strict-dept and
-      // standing hidden sets so filtered courses don't appear anywhere in
-      // the upstream chain when their respective toggles are on.
+      // For the chain BFS, combine user mutes with every active hide set
+      // (dept, standing, major) so filtered courses don't appear anywhere
+      // in the upstream chain when their respective toggles are on.
       const chainHidden =
-        deptHiddenSet.size === 0 && standingHiddenSet.size === 0
+        deptHiddenSet.size === 0 &&
+        standingHiddenSet.size === 0 &&
+        majorHiddenSet.size === 0
           ? mutedSet
           : new Set<string>([
               ...mutedSet,
               ...deptHiddenSet,
               ...standingHiddenSet,
+              ...majorHiddenSet,
             ]);
       const { courseCodes, edges: chainEdges, truncated } = buildUpstreamChain(
         graph,
@@ -649,6 +711,8 @@ function GraphInner({
             completed: completed.has(code),
             outOfDept,
             requiredStanding: c?.required_standing ?? null,
+            restrictedToMajors: c?.restricted_to_majors ?? null,
+            majorIneligible: isMajorIneligible(c),
             onClick: onSelectCourse,
           },
         });
@@ -713,6 +777,8 @@ function GraphInner({
           completed: completed.has(code),
           outOfDept: isOutOfDept(code),
           requiredStanding: c?.required_standing ?? null,
+          restrictedToMajors: c?.restricted_to_majors ?? null,
+          majorIneligible: isMajorIneligible(c),
           onClick: onSelectCourse,
           ...extra,
         },
@@ -828,6 +894,14 @@ function GraphInner({
             continue;
           }
           alts = afterStanding;
+        }
+        if (majorHiddenSet.size > 0) {
+          const afterMajor = alts.filter((a) => !majorHiddenSet.has(a));
+          if (afterMajor.length === 0) {
+            // All remaining alts are restricted to majors the user isn't in.
+            continue;
+          }
+          alts = afterMajor;
         }
         slotRenders.push({ origIdx: i, alts, muted: false });
       }
@@ -962,6 +1036,7 @@ function GraphInner({
           if (cascadeSet?.has(c)) return;
           if (deptHiddenSet.has(c)) return;
           if (standingHiddenSet.has(c)) return;
+          if (majorHiddenSet.has(c)) return;
           if (!groupOfPrereq[c]) {
             groupOfPrereq[c] = [];
             flatPrereqs.push(c);
@@ -1024,7 +1099,8 @@ function GraphInner({
       (code) =>
         !mutedSet.has(code) &&
         !deptHiddenSet.has(code) &&
-        !standingHiddenSet.has(code),
+        !standingHiddenSet.has(code) &&
+        !majorHiddenSet.has(code),
     );
     visibleUnlocks.forEach((code, i) => {
       const y = i * ROW_H - ((visibleUnlocks.length - 1) * ROW_H) / 2;
@@ -1071,6 +1147,8 @@ function GraphInner({
     cascadeSet,
     deptHiddenSet,
     standingHiddenSet,
+    majorHiddenSet,
+    myMajorSet,
     setPick,
     clearPick,
     expandDepth,

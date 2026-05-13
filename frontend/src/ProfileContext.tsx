@@ -22,6 +22,8 @@ type ProfileCtx = {
   setHideOutOfDept: (hide: boolean) => void;
   setMyStanding: (standing: Standing | null) => void;
   setHideAboveStanding: (hide: boolean) => void;
+  setMyMajorCodes: (codes: string[]) => void;
+  setHideMajorRestricted: (hide: boolean) => void;
 };
 
 const Ctx = createContext<ProfileCtx | null>(null);
@@ -124,6 +126,29 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
     );
   }, []);
 
+  const setMyMajorCodes = useCallback((codes: string[]) => {
+    setProfile((p) => {
+      const next = Array.from(
+        new Set(codes.map((c) => c.toUpperCase().replace(/\s+/g, "")).filter(Boolean)),
+      );
+      next.sort();
+      const sortedCurrent = [...p.myMajorCodes].sort();
+      if (
+        sortedCurrent.length === next.length &&
+        sortedCurrent.every((c, i) => c === next[i])
+      ) {
+        return p;
+      }
+      return { ...p, myMajorCodes: next };
+    });
+  }, []);
+
+  const setHideMajorRestricted = useCallback((hide: boolean) => {
+    setProfile((p) =>
+      p.hideMajorRestricted === hide ? p : { ...p, hideMajorRestricted: hide },
+    );
+  }, []);
+
   const setMyDepartments = useCallback((depts: string[]) => {
     setProfile((p) => {
       const next = Array.from(new Set(depts.map((d) => d.toUpperCase()).filter(Boolean)));
@@ -153,6 +178,8 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
       setHideOutOfDept,
       setMyStanding,
       setHideAboveStanding,
+      setMyMajorCodes,
+      setHideMajorRestricted,
     }),
     [
       profile,
@@ -167,6 +194,8 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
       setHideOutOfDept,
       setMyStanding,
       setHideAboveStanding,
+      setMyMajorCodes,
+      setHideMajorRestricted,
     ],
   );
 

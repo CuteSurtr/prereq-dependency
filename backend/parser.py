@@ -43,6 +43,52 @@ _STANDING_PATTERNS: tuple[tuple[re.Pattern[str], Standing], ...] = (
 
 _COURSE_NUM_RE = re.compile(r"\d+")
 
+# Major-code restrictions: "Restricted to CS25, CS26, CS27 majors only",
+# "bioengineering majors only (BE25, BE27, BE28, BE29) or consent of department",
+# "MC 25, MC 27, MC 29, and MC 30-37 majors only", etc.
+_MAJOR_CODE_RE = re.compile(r"\b([A-Z]{2})\s?(\d{2})\b")
+_MAJOR_RANGE_RE = re.compile(r"\b([A-Z]{2})\s?(\d{2})\s*[-–—]\s*(\d{2})\b")
+_MAJOR_CONTEXT_PATTERNS: tuple[re.Pattern[str], ...] = (
+    re.compile(r"[Rr]estricted to\s+([^.]+?majors?\s+only)", re.S),
+    re.compile(r"[Oo]pen (?:only )?to\s+([^.]+?majors?(?:\s+only)?)", re.S),
+    re.compile(r"\(([^)]+?)\)\s+majors?\s+only", re.S),
+    re.compile(r"majors?\s+only\s*\(([^)]+?)\)", re.S),
+    re.compile(
+        r"([A-Z]{2}\s?\d{2}(?:\s*[-–—]\s*\d{2})?"
+        r"(?:\s*,\s*(?:and\s+)?[A-Z]{2}\s?\d{2}(?:\s*[-–—]\s*\d{2})?){0,15})"
+        r"\s+majors?\s+only",
+        re.S,
+    ),
+)
+
+
+def detect_restricted_majors(
+    raw_prereq_text: str | None,
+    description: str | None,
+) -> list[str] | None:
+    """Extract the list of major codes a course is restricted to.
+
+    Returns a sorted, deduped list of codes (e.g. ``["CS25", "CS26", "CS27"]``)
+    or None when no major-code restriction is detectable. Conservative: only
+    matches when the catalog explicitly lists major codes near a
+    "majors only" / "Restricted to" / "Open to" phrasing, so courses gated
+    purely by department consent or class standing aren't mis-flagged.
+    """
+    text = " ".join(filter(None, [raw_prereq_text or "", description or ""]))
+    codes: set[str] = set()
+    for pat in _MAJOR_CONTEXT_PATTERNS:
+        for m in pat.finditer(text):
+            chunk = m.group(1)
+            # Expand any range like "MC 30-37" into MC30, MC31, ..., MC37.
+            for rm in _MAJOR_RANGE_RE.finditer(chunk):
+                prefix, lo, hi = rm.group(1), int(rm.group(2)), int(rm.group(3))
+                if 0 <= lo <= hi <= 99 and hi - lo <= 12:
+                    for n in range(lo, hi + 1):
+                        codes.add(f"{prefix}{n:02d}")
+            for cm in _MAJOR_CODE_RE.finditer(chunk):
+                codes.add(f"{cm.group(1)}{cm.group(2)}")
+    return sorted(codes) if codes else None
+
 
 def detect_standing(
     code: str,

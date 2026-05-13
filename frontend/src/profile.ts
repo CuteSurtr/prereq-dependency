@@ -8,6 +8,8 @@ export type Profile = {
   hideOutOfDept: boolean;
   myStanding: Standing | null;
   hideAboveStanding: boolean;
+  myMajorCodes: string[];
+  hideMajorRestricted: boolean;
 };
 
 const STORAGE_KEY = "prereq-profile-v1";
@@ -20,6 +22,8 @@ const EMPTY_PROFILE: Profile = {
   hideOutOfDept: false,
   myStanding: null,
   hideAboveStanding: false,
+  myMajorCodes: [],
+  hideMajorRestricted: false,
 };
 
 const VALID_STANDINGS: ReadonlySet<string> = new Set([
@@ -55,6 +59,13 @@ export function loadProfile(): Profile {
           : null,
       hideAboveStanding:
         typeof parsed.hideAboveStanding === "boolean" ? parsed.hideAboveStanding : false,
+      myMajorCodes: Array.isArray(parsed.myMajorCodes)
+        ? parsed.myMajorCodes.filter((c): c is string => typeof c === "string")
+        : [],
+      hideMajorRestricted:
+        typeof parsed.hideMajorRestricted === "boolean"
+          ? parsed.hideMajorRestricted
+          : false,
     };
   } catch {
     return EMPTY_PROFILE;

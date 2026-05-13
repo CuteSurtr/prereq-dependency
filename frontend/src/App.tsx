@@ -187,11 +187,16 @@ export default function App() {
     setHideOutOfDept,
     setMyStanding,
     setHideAboveStanding,
+    setMyMajorCodes,
+    setHideMajorRestricted,
   } = useProfile();
-  // Seed the departments input synchronously from the persisted profile so
-  // the input never flickers empty on first paint.
+  // Seed the departments / major-codes inputs synchronously from the
+  // persisted profile so the field never flickers empty on first paint.
   const [deptsRaw, setDeptsRaw] = useState<string>(() =>
     profile.myDepartments.join(", "),
+  );
+  const [majorsRaw, setMajorsRaw] = useState<string>(() =>
+    profile.myMajorCodes.join(", "),
   );
   const pickCount = totalPicks(profile);
   const mutedSet = useMemo(() => new Set(profile.muted), [profile.muted]);
@@ -206,6 +211,18 @@ export default function App() {
       setMyDepartments(parsed);
     },
     [setMyDepartments],
+  );
+
+  const commitMajorCodes = useCallback(
+    (text: string) => {
+      const parsed = text
+        .toUpperCase()
+        .split(/[,\s]+/)
+        .map((s) => s.trim().replace(/\s+/g, ""))
+        .filter((s) => /^[A-Z]{2}\d{2}$/.test(s));
+      setMyMajorCodes(parsed);
+    },
+    [setMyMajorCodes],
   );
 
   useEffect(() => {
@@ -414,6 +431,29 @@ export default function App() {
           </select>
         </div>
 
+        <div style={styles.field}>
+          <label style={labelStyle} htmlFor="major-input">
+            My major code(s)
+          </label>
+          <input
+            id="major-input"
+            data-testid="major-input"
+            value={majorsRaw}
+            onChange={(e) => {
+              setMajorsRaw(e.target.value);
+              commitMajorCodes(e.target.value);
+            }}
+            placeholder='e.g. "CS27" or "BE25, BE27"'
+            style={{ fontFamily: "var(--font-mono)", fontSize: 12 }}
+          />
+          {profile.myMajorCodes.length > 0 && (
+            <span style={{ ...styles.recognizedCount, marginTop: 4 }}>
+              {profile.myMajorCodes.length} code
+              {profile.myMajorCodes.length === 1 ? "" : "s"} saved
+            </span>
+          )}
+        </div>
+
         <div style={{ ...styles.field, marginBottom: 14, gap: 6 }}>
           <label
             style={{
@@ -443,6 +483,37 @@ export default function App() {
             />
             <span>
               Hide courses above my standing
+            </span>
+          </label>
+          <label
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              fontSize: 12,
+              color:
+                profile.myMajorCodes.length === 0
+                  ? "var(--color-body-muted, var(--color-body))"
+                  : "var(--color-label)",
+              cursor:
+                profile.myMajorCodes.length === 0 ? "not-allowed" : "pointer",
+              opacity: profile.myMajorCodes.length === 0 ? 0.55 : 1,
+            }}
+            title={
+              profile.myMajorCodes.length === 0
+                ? "Set My major code(s) first"
+                : "Courses restricted to majors not in your list disappear from the graph."
+            }
+          >
+            <input
+              type="checkbox"
+              checked={profile.hideMajorRestricted}
+              disabled={profile.myMajorCodes.length === 0}
+              onChange={(e) => setHideMajorRestricted(e.target.checked)}
+              style={{ accentColor: "var(--color-purple)" }}
+            />
+            <span>
+              Hide courses my major can&apos;t take
             </span>
           </label>
           <label
