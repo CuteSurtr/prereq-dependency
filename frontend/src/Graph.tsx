@@ -1,3 +1,4 @@
+import dagre from "dagre";
 import { useEffect, useMemo } from "react";
 import ReactFlow, {
   Background,
@@ -13,7 +14,8 @@ import ReactFlow, {
   type NodeProps,
 } from "reactflow";
 import "reactflow/dist/style.css";
-import type { GraphData } from "./types";
+import { useProfile } from "./ProfileContext";
+import type { Course, GraphData } from "./types";
 
 type CourseNodeData = {
   code: string;
@@ -21,7 +23,20 @@ type CourseNodeData = {
   variant: "focus" | "prereq" | "unlock";
   eligible: boolean;
   completed: boolean;
+  picked?: boolean;
+  pickable?: boolean;
+  outOfDept?: boolean;
   onClick: (code: string) => void;
+  onPickInstead?: () => void;
+};
+
+type SlotJoinData = {
+  label: string;
+};
+
+type HiddenAltsBadgeData = {
+  label: string;
+  onClick: () => void;
 };
 
 const COLORS = {
@@ -44,42 +59,65 @@ function CourseNode({ data }: NodeProps<CourseNodeData>) {
   const isFocus = data.variant === "focus";
   const isCompleted = data.completed;
   const isEligible = data.eligible && !isFocus;
+  const isPicked = data.picked === true;
+  const isOutOfDept = data.outOfDept === true && !isFocus;
 
   const bg = isCompleted
     ? COLORS.successBg
     : isFocus
       ? "linear-gradient(180deg, #ffffff 0%, #f6f9fc 100%)"
-      : isEligible
-        ? "#ffffff"
+      : isOutOfDept
+        ? COLORS.bgSubtle
         : "#ffffff";
 
   const border = isFocus
     ? `2px solid ${COLORS.purple}`
     : isCompleted
       ? `1px solid ${COLORS.successBorder}`
-      : isEligible
-        ? `1px solid ${COLORS.purpleLight}`
-        : `1px solid ${COLORS.border}`;
+      : isPicked
+        ? `1.5px solid ${COLORS.purple}`
+        : isOutOfDept
+          ? `1px dashed ${COLORS.bodyMuted}`
+          : isEligible
+            ? `1px solid ${COLORS.purpleLight}`
+            : `1px solid ${COLORS.border}`;
 
   const shadow = isFocus
     ? "rgba(50,50,93,0.25) 0px 30px 45px -30px, rgba(0,0,0,0.1) 0px 18px 36px -18px"
-    : isEligible
-      ? "rgba(83,58,253,0.18) 0px 8px 18px -8px, rgba(23,23,23,0.06) 0px 3px 6px"
-      : "rgba(23,23,23,0.06) 0px 3px 6px";
+    : isPicked
+      ? "rgba(83,58,253,0.22) 0px 8px 18px -8px, rgba(23,23,23,0.06) 0px 3px 6px"
+      : isEligible
+        ? "rgba(83,58,253,0.18) 0px 8px 18px -8px, rgba(23,23,23,0.06) 0px 3px 6px"
+        : "rgba(23,23,23,0.06) 0px 3px 6px";
 
   const codeColor = isCompleted
     ? COLORS.successText
     : isFocus
       ? COLORS.navy
-      : isEligible
+      : isPicked || isEligible
         ? COLORS.purple
         : COLORS.label;
 
   const titleColor = isFocus ? COLORS.label : COLORS.body;
 
+  const handleClick = () => {
+    if (data.onPickInstead) {
+      data.onPickInstead();
+    } else {
+      data.onClick(data.code);
+    }
+  };
+
   return (
     <div
-      onClick={() => data.onClick(data.code)}
+      onClick={handleClick}
+      title={
+        data.pickable
+          ? isPicked
+            ? "Picked — click to keep, or pick another alternative"
+            : "Click to pick this alternative"
+          : undefined
+      }
       style={{
         padding: "10px 14px",
         borderRadius: 6,
@@ -91,6 +129,7 @@ function CourseNode({ data }: NodeProps<CourseNodeData>) {
         boxShadow: shadow,
         transition: "transform 120ms ease, box-shadow 120ms ease",
         position: "relative",
+        opacity: isOutOfDept ? 0.75 : 1,
       }}
       onMouseEnter={(e) => {
         e.currentTarget.style.transform = "translateY(-1px)";
@@ -119,6 +158,30 @@ function CourseNode({ data }: NodeProps<CourseNodeData>) {
             boxShadow: "0 2px 4px rgba(16,140,61,0.3)",
           }}
           aria-hidden
+        >
+          ✓
+        </div>
+      )}
+      {isPicked && !isCompleted && (
+        <div
+          style={{
+            position: "absolute",
+            top: -6,
+            right: -6,
+            background: COLORS.purple,
+            color: "#fff",
+            width: 16,
+            height: 16,
+            borderRadius: "50%",
+            fontSize: 10,
+            fontWeight: 500,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            boxShadow: "0 2px 4px rgba(83,58,253,0.3)",
+          }}
+          aria-label="Picked alternative"
+          title="Picked"
         >
           ✓
         </div>
@@ -152,49 +215,264 @@ function CourseNode({ data }: NodeProps<CourseNodeData>) {
   );
 }
 
-const NODE_TYPES = { course: CourseNode };
+function SlotJoinNode({ data }: NodeProps<SlotJoinData>) {
+  return (
+    <div
+      style={{
+        padding: "3px 10px",
+        borderRadius: 999,
+        background: COLORS.bg,
+        border: `1px dashed ${COLORS.purpleLight}`,
+        fontSize: 10,
+        fontWeight: 500,
+        color: COLORS.purple,
+        letterSpacing: "0.04em",
+        textTransform: "uppercase",
+        fontFamily:
+          "'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif",
+        boxShadow: "rgba(83,58,253,0.10) 0px 2px 6px",
+        position: "relative",
+        whiteSpace: "nowrap",
+      }}
+    >
+      <Handle type="target" position={Position.Left} style={{ visibility: "hidden" }} />
+      {data.label}
+      <Handle type="source" position={Position.Right} style={{ visibility: "hidden" }} />
+    </div>
+  );
+}
+
+function HiddenAltsBadge({ data }: NodeProps<HiddenAltsBadgeData>) {
+  return (
+    <div
+      onClick={data.onClick}
+      title="Click to show all alternatives again"
+      style={{
+        padding: "3px 10px",
+        borderRadius: 999,
+        background: COLORS.bgSubtle,
+        border: `1px solid ${COLORS.border}`,
+        fontSize: 10,
+        fontWeight: 500,
+        color: COLORS.body,
+        letterSpacing: "0.04em",
+        textTransform: "uppercase",
+        fontFamily:
+          "'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif",
+        cursor: "pointer",
+        whiteSpace: "nowrap",
+        transition: "background 120ms ease, color 120ms ease",
+      }}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.background = "#ffffff";
+        e.currentTarget.style.color = COLORS.purple;
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.background = COLORS.bgSubtle;
+        e.currentTarget.style.color = COLORS.body;
+      }}
+    >
+      <Handle type="target" position={Position.Left} style={{ visibility: "hidden" }} />
+      {data.label}
+      <Handle type="source" position={Position.Right} style={{ visibility: "hidden" }} />
+    </div>
+  );
+}
+
+const NODE_TYPES = {
+  course: CourseNode,
+  slotJoin: SlotJoinNode,
+  hiddenAlts: HiddenAltsBadge,
+};
 
 const ROW_H = 78;
-const COL_X = { prereq: 0, focus: 380, unlock: 760 };
+const SLOT_GAP = 28;
+const COL_X = { prereq: 0, join: 320, focus: 480, unlock: 820 };
 
 export type GraphProps = {
   graph: GraphData;
   focusCode: string;
   completed: Set<string>;
   onSelectCourse: (code: string) => void;
+  expandDepth: number;
 };
 
 const UNLOCK_CAP = 12;
+const CHAIN_NODE_CAP = 160;
+const CHAIN_NODE_W = 180;
+const CHAIN_NODE_H = 64;
 
-function GraphInner({ graph, focusCode, completed, onSelectCourse }: GraphProps) {
+type ChainEdge = { source: string; target: string; kind: "and" | "or" };
+
+function effectivePrereqs(
+  course: Course,
+  picks: Record<number, string>,
+  mutedSet: Set<string>,
+): { slot: string[]; kind: "and" | "or"; empty: boolean }[] {
+  if (course.prereq_slots && course.prereq_slots.length > 0) {
+    return course.prereq_slots.map((alts, slotIdx) => {
+      const filtered = alts.filter((a) => !mutedSet.has(a));
+      if (filtered.length === 0) return { slot: alts, kind: "and", empty: true };
+      if (filtered.length === 1) return { slot: filtered, kind: "and", empty: false };
+      const picked = picks[slotIdx];
+      if (picked && filtered.includes(picked))
+        return { slot: [picked], kind: "and", empty: false };
+      return { slot: filtered, kind: "or", empty: false };
+    });
+  }
+  if (course.prereq_groups.length === 0) return [];
+  const seen = new Set<string>();
+  const flat: string[] = [];
+  course.prereq_groups.forEach((g) =>
+    g.forEach((c) => {
+      if (!seen.has(c)) {
+        seen.add(c);
+        flat.push(c);
+      }
+    }),
+  );
+  const filtered = flat.filter((c) => !mutedSet.has(c));
+  return [
+    {
+      slot: filtered.length ? filtered : flat,
+      kind: course.prereq_groups.length > 1 ? "or" : "and",
+      empty: filtered.length === 0,
+    },
+  ];
+}
+
+function buildUpstreamChain(
+  graph: GraphData,
+  focusCode: string,
+  picks: Record<string, Record<number, string>>,
+  mutedSet: Set<string>,
+  maxDepth: number,
+): { courseCodes: string[]; edges: ChainEdge[]; truncated: boolean } {
+  const courseCodes = new Set<string>([focusCode]);
+  const edges: ChainEdge[] = [];
+  const queue: { code: string; depth: number }[] = [{ code: focusCode, depth: 0 }];
+  let truncated = false;
+
+  while (queue.length > 0) {
+    const { code, depth } = queue.shift()!;
+    if (depth >= maxDepth) continue;
+    if (courseCodes.size >= CHAIN_NODE_CAP) {
+      truncated = true;
+      break;
+    }
+    const course = graph.courses[code];
+    if (!course) continue;
+    const prereqs = effectivePrereqs(course, picks[code] ?? {}, mutedSet);
+    for (const { slot, kind, empty } of prereqs) {
+      if (empty) continue;
+      for (const prereqCode of slot) {
+        if (mutedSet.has(prereqCode)) continue;
+        edges.push({ source: prereqCode, target: code, kind });
+        if (!courseCodes.has(prereqCode)) {
+          if (courseCodes.size >= CHAIN_NODE_CAP) {
+            truncated = true;
+            break;
+          }
+          courseCodes.add(prereqCode);
+          queue.push({ code: prereqCode, depth: depth + 1 });
+        }
+      }
+      if (truncated) break;
+    }
+  }
+
+  return { courseCodes: Array.from(courseCodes), edges, truncated };
+}
+
+function layoutChain(
+  courseCodes: string[],
+  edges: ChainEdge[],
+): Record<string, { x: number; y: number }> {
+  const g = new dagre.graphlib.Graph();
+  g.setGraph({ rankdir: "LR", ranksep: 90, nodesep: 18, marginx: 20, marginy: 20 });
+  g.setDefaultEdgeLabel(() => ({}));
+  for (const code of courseCodes) {
+    g.setNode(code, { width: CHAIN_NODE_W, height: CHAIN_NODE_H });
+  }
+  const seenEdgePairs = new Set<string>();
+  for (const e of edges) {
+    const key = `${e.source}->${e.target}`;
+    if (seenEdgePairs.has(key)) continue;
+    seenEdgePairs.add(key);
+    g.setEdge(e.source, e.target);
+  }
+  dagre.layout(g);
+  const positions: Record<string, { x: number; y: number }> = {};
+  for (const code of courseCodes) {
+    const n = g.node(code);
+    positions[code] = {
+      x: n.x - CHAIN_NODE_W / 2,
+      y: n.y - CHAIN_NODE_H / 2,
+    };
+  }
+  return positions;
+}
+
+function GraphInner({
+  graph,
+  focusCode,
+  completed,
+  onSelectCourse,
+  expandDepth,
+}: GraphProps) {
   const reactFlow = useReactFlow();
+  const { profile, setPick, clearPick } = useProfile();
 
   useEffect(() => {
     const t = setTimeout(() => reactFlow.fitView({ padding: 0.2, duration: 250 }), 50);
     return () => clearTimeout(t);
-  }, [focusCode, reactFlow]);
+  }, [focusCode, expandDepth, reactFlow]);
 
-  const { nodes, edges, hiddenUnlockCount } = useMemo(() => {
+  const mutedSet = useMemo(() => new Set(profile.muted), [profile.muted]);
+  const myDeptSet = useMemo(
+    () => new Set(profile.myDepartments),
+    [profile.myDepartments],
+  );
+
+  const {
+    nodes,
+    edges,
+    hiddenUnlockCount,
+    chainTruncated,
+    chainNodeCount,
+    unreachable,
+    spilloverCount,
+  } = useMemo<{
+    nodes: Node[];
+    edges: Edge[];
+    hiddenUnlockCount: number;
+    chainTruncated: boolean;
+    chainNodeCount: number;
+    unreachable: boolean;
+    spilloverCount: number;
+  }>(() => {
     const focus = graph.courses[focusCode];
-    if (!focus) return { nodes: [], edges: [], hiddenUnlockCount: 0 };
+    if (!focus)
+      return {
+        nodes: [],
+        edges: [],
+        hiddenUnlockCount: 0,
+        chainTruncated: false,
+        chainNodeCount: 0,
+        unreachable: false,
+        spilloverCount: 0,
+      };
 
-    const prereqGroups = focus.prereq_groups;
-    const flatPrereqs: string[] = [];
-    const groupOfPrereq: Record<string, number[]> = {};
-    prereqGroups.forEach((group, gi) => {
-      group.forEach((c) => {
-        if (!groupOfPrereq[c]) {
-          groupOfPrereq[c] = [];
-          flatPrereqs.push(c);
-        }
-        groupOfPrereq[c].push(gi);
-      });
-    });
+    const isOutOfDept = (code: string): boolean => {
+      if (myDeptSet.size === 0) return false;
+      const c = graph.courses[code];
+      return !!c && !myDeptSet.has(c.department);
+    };
+
     const allUnlocks = graph.unlocks[focusCode] ?? [];
     const unlocks = allUnlocks.slice(0, UNLOCK_CAP);
-    const hiddenUnlockCount = Math.max(0, allUnlocks.length - unlocks.length);
 
-    const nodes: Node<CourseNodeData>[] = [];
+    const nodes: Node[] = [];
     const edges: Edge[] = [];
 
     const isEligible = (code: string): boolean => {
@@ -205,15 +483,90 @@ function GraphInner({ graph, focusCode, completed, onSelectCourse }: GraphProps)
       return c.prereq_groups.some((g) => g.every((p) => completed.has(p)));
     };
 
-    const mkNode = (
+    // ── Chain view (depth > 1) ──
+    if (expandDepth > 1) {
+      const { courseCodes, edges: chainEdges, truncated } = buildUpstreamChain(
+        graph,
+        focusCode,
+        profile.picks,
+        mutedSet,
+        expandDepth,
+      );
+      const positions = layoutChain(courseCodes, chainEdges);
+      let chainSpillover = 0;
+
+      for (const code of courseCodes) {
+        const c = graph.courses[code];
+        const pos = positions[code] ?? { x: 0, y: 0 };
+        const variant: CourseNodeData["variant"] =
+          code === focusCode ? "focus" : "prereq";
+        const outOfDept = isOutOfDept(code);
+        if (variant !== "focus" && outOfDept) chainSpillover++;
+        nodes.push({
+          id: `c:${code}`,
+          type: "course",
+          position: pos,
+          data: {
+            code,
+            title: c?.title ?? "(unknown)",
+            variant,
+            eligible: variant !== "focus" && isEligible(code),
+            completed: completed.has(code),
+            outOfDept,
+            onClick: onSelectCourse,
+          },
+        });
+      }
+
+      // Edges: dedupe by source/target/kind; OR-edges are dashed.
+      const seenEdge = new Set<string>();
+      for (const e of chainEdges) {
+        const key = `${e.source}->${e.target}|${e.kind}`;
+        if (seenEdge.has(key)) continue;
+        seenEdge.add(key);
+        const isOr = e.kind === "or";
+        edges.push({
+          id: `chain-${key}`,
+          source: `c:${e.source}`,
+          target: `c:${e.target}`,
+          style: {
+            stroke: isOr ? COLORS.purpleLight : COLORS.purple,
+            strokeWidth: isOr ? 1.2 : 1.5,
+            strokeDasharray: isOr ? "4,4" : undefined,
+          },
+          markerEnd: {
+            type: MarkerType.ArrowClosed,
+            color: isOr ? COLORS.purpleLight : COLORS.purple,
+            width: 14,
+            height: 14,
+          },
+        });
+      }
+
+      const focusPrereqs = effectivePrereqs(focus, profile.picks[focusCode] ?? {}, mutedSet);
+      const chainUnreachable = focusPrereqs.some((s) => s.empty);
+
+      return {
+        nodes,
+        edges,
+        hiddenUnlockCount: 0,
+        chainTruncated: truncated,
+        chainNodeCount: courseCodes.length,
+        unreachable: chainUnreachable,
+        spilloverCount: chainSpillover,
+      };
+    }
+
+    const mkCourseNode = (
       code: string,
       x: number,
       y: number,
       variant: CourseNodeData["variant"],
+      extra: Partial<CourseNodeData> = {},
     ): Node<CourseNodeData> => {
       const c = graph.courses[code];
       return {
-        id: code,
+        id: `c:${code}`,
         type: "course",
         position: { x, y },
         data: {
@@ -222,69 +575,265 @@ function GraphInner({ graph, focusCode, completed, onSelectCourse }: GraphProps)
           variant,
           eligible: variant !== "focus" && isEligible(code),
           completed: completed.has(code),
+          outOfDept: isOutOfDept(code),
           onClick: onSelectCourse,
+          ...extra,
         },
       };
     };
 
-    const isOr = prereqGroups.length > 1;
-
-    flatPrereqs.forEach((code, i) => {
-      const y = i * ROW_H - ((flatPrereqs.length - 1) * ROW_H) / 2;
-      nodes.push(mkNode(code, COL_X.prereq, y, "prereq"));
-      const groups = groupOfPrereq[code];
-      const labelText = isOr
-        ? groups.length === 1
-          ? `OR · group ${groups[0] + 1}`
-          : `OR · groups ${groups.map((g) => g + 1).join(", ")}`
-        : "AND";
-      edges.push({
-        id: `e-${code}->${focusCode}`,
-        source: code,
-        target: focusCode,
-        animated: false,
-        label: labelText,
-        labelStyle: {
-          fontSize: 10,
-          fill: COLORS.label,
-          fontFamily:
-            "'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif",
-          fontWeight: 500,
-          letterSpacing: "0.02em",
-        },
-        labelBgStyle: {
-          fill: "#ffffff",
-          stroke: COLORS.border,
-          strokeWidth: 1,
-        },
-        labelBgPadding: [4, 6],
-        labelBgBorderRadius: 4,
-        style: {
-          stroke: COLORS.purple,
-          strokeWidth: 1.5,
-          strokeDasharray: isOr ? "5,4" : undefined,
-        },
-        markerEnd: {
-          type: MarkerType.ArrowClosed,
-          color: COLORS.purple,
-          width: 16,
-          height: 16,
-        },
-      });
+    const mkJoinNode = (
+      id: string,
+      x: number,
+      y: number,
+      label: string,
+    ): Node<SlotJoinData> => ({
+      id,
+      type: "slotJoin",
+      position: { x, y },
+      data: { label },
+      selectable: false,
+      draggable: false,
     });
 
-    nodes.push(mkNode(focusCode, COL_X.focus, 0, "focus"));
+    const mkHiddenBadge = (
+      id: string,
+      x: number,
+      y: number,
+      label: string,
+      onClick: () => void,
+    ): Node<HiddenAltsBadgeData> => ({
+      id,
+      type: "hiddenAlts",
+      position: { x, y },
+      data: { label, onClick },
+      selectable: false,
+      draggable: false,
+    });
 
-    unlocks.forEach((code, i) => {
-      const y = i * ROW_H - ((unlocks.length - 1) * ROW_H) / 2;
-      nodes.push(mkNode(code, COL_X.unlock, y, "unlock"));
+    const mkAndEdge = (id: string, source: string): Edge => ({
+      id,
+      source,
+      target: `c:${focusCode}`,
+      label: "AND",
+      labelStyle: {
+        fontSize: 10,
+        fill: COLORS.label,
+        fontFamily:
+          "'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif",
+        fontWeight: 500,
+        letterSpacing: "0.02em",
+      },
+      labelBgStyle: { fill: "#ffffff", stroke: COLORS.border, strokeWidth: 1 },
+      labelBgPadding: [4, 6],
+      labelBgBorderRadius: 4,
+      style: { stroke: COLORS.purple, strokeWidth: 1.5 },
+      markerEnd: {
+        type: MarkerType.ArrowClosed,
+        color: COLORS.purple,
+        width: 16,
+        height: 16,
+      },
+    });
+
+    const slots = focus.prereq_slots;
+    const useSlots = slots !== null && slots.length > 0;
+    const picksForFocus = profile.picks[focusCode] ?? {};
+    let slotUnreachable = false;
+    let slotSpillover = 0;
+
+    if (useSlots) {
+      // Apply mute filter to each slot's alternatives. If a slot becomes
+      // empty under mutes, the focus course is unreachable — render the
+      // original alts as a "muted-out" slot so the user sees what was hidden.
+      const filteredSlots: { alts: string[]; muted: boolean }[] = slots.map((alts) => {
+        const kept = alts.filter((a) => !mutedSet.has(a));
+        if (kept.length === 0) return { alts, muted: true };
+        return { alts: kept, muted: false };
+      });
+      if (filteredSlots.some((s) => s.muted)) slotUnreachable = true;
+
+      // Precompute the rendered height of each slot, accounting for collapses
+      // caused by picks. Picked slots get extra height so the "+N hidden"
+      // badge can sit below the picked card without colliding.
+      const renderedAlts: string[][] = filteredSlots.map(({ alts }, slotIdx) => {
+        if (alts.length === 1) return alts;
+        const picked = picksForFocus[slotIdx];
+        if (picked && alts.includes(picked)) return [picked];
+        return alts;
+      });
+      const slotHeights = renderedAlts.map((alts, slotIdx) => {
+        const base = alts.length * ROW_H;
+        const isCollapsedPick =
+          filteredSlots[slotIdx].alts.length > 1 && alts.length === 1;
+        return isCollapsedPick ? base + 36 : base;
+      });
+      const totalHeight =
+        slotHeights.reduce((a, b) => a + b, 0) +
+        SLOT_GAP * Math.max(0, slots.length - 1);
+      let yCursor = -totalHeight / 2;
+      const seenCourseNode = new Set<string>();
+
+      const spilloverSeen = new Set<string>();
+
+      filteredSlots.forEach(({ alts, muted: slotMuted }, slotIdx) => {
+        const slotH = slotHeights[slotIdx];
+        const slotTop = yCursor;
+        const slotCenter = slotTop + slotH / 2 - ROW_H / 2;
+        const picked = picksForFocus[slotIdx];
+        const isPicked = !slotMuted && alts.length > 1 && picked && alts.includes(picked);
+        for (const code of alts) {
+          if (
+            !slotMuted &&
+            !mutedSet.has(code) &&
+            isOutOfDept(code) &&
+            !spilloverSeen.has(code)
+          ) {
+            spilloverSeen.add(code);
+            slotSpillover++;
+          }
+        }
+
+        if (alts.length === 1) {
+          const code = alts[0];
+          if (!seenCourseNode.has(code)) {
+            nodes.push(mkCourseNode(code, COL_X.prereq, slotCenter, "prereq"));
+            seenCourseNode.add(code);
+          }
+          edges.push(mkAndEdge(`e-slot${slotIdx}-${code}-focus`, `c:${code}`));
+        } else if (isPicked) {
+          // Collapsed picked slot: only the picked alt + a "+N hidden" badge
+          // (positioned below the card) that clears the pick when clicked.
+          const code = picked as string;
+          const altY = slotCenter;
+          if (!seenCourseNode.has(code)) {
+            nodes.push(
+              mkCourseNode(code, COL_X.prereq, altY, "prereq", {
+                picked: true,
+                pickable: true,
+                onPickInstead: () => clearPick(focusCode, slotIdx),
+              }),
+            );
+            seenCourseNode.add(code);
+          }
+          const hiddenCount = alts.length - 1;
+          nodes.push(
+            mkHiddenBadge(
+              `hidden:${slotIdx}`,
+              COL_X.prereq + 8,
+              altY + 72,
+              `+${hiddenCount} hidden · change`,
+              () => clearPick(focusCode, slotIdx),
+            ),
+          );
+          edges.push(mkAndEdge(`e-slot${slotIdx}-picked-focus`, `c:${code}`));
+        } else {
+          // Expanded multi-alt slot: stack alternatives, route through join.
+          alts.forEach((code, j) => {
+            const y = slotTop + j * ROW_H;
+            if (!seenCourseNode.has(code)) {
+              nodes.push(
+                mkCourseNode(code, COL_X.prereq, y, "prereq", {
+                  pickable: true,
+                  onPickInstead: () => setPick(focusCode, slotIdx, code),
+                }),
+              );
+              seenCourseNode.add(code);
+            }
+            edges.push({
+              id: `e-slot${slotIdx}-${code}-join`,
+              source: `c:${code}`,
+              target: `slot:${slotIdx}`,
+              style: {
+                stroke: COLORS.purpleLight,
+                strokeWidth: 1.2,
+                strokeDasharray: "4,4",
+              },
+            });
+          });
+          nodes.push(
+            mkJoinNode(`slot:${slotIdx}`, COL_X.join, slotCenter, `1 of ${alts.length}`),
+          );
+          edges.push(mkAndEdge(`e-slot${slotIdx}-join-focus`, `slot:${slotIdx}`));
+        }
+        yCursor += slotH + SLOT_GAP;
+      });
+    } else {
+      // Legacy fan-in for unfactored prereqs (~16% of courses with prereqs).
+      const prereqGroups = focus.prereq_groups;
+      const flatPrereqs: string[] = [];
+      const groupOfPrereq: Record<string, number[]> = {};
+      prereqGroups.forEach((group, gi) => {
+        group.forEach((c) => {
+          if (mutedSet.has(c)) return;
+          if (!groupOfPrereq[c]) {
+            groupOfPrereq[c] = [];
+            flatPrereqs.push(c);
+          }
+          groupOfPrereq[c].push(gi);
+        });
+      });
+      // Unreachable: every group must contain at least one un-muted course.
+      const unreachableFanin =
+        prereqGroups.length > 0 &&
+        prereqGroups.every((g) => g.every((c) => mutedSet.has(c)));
+      if (unreachableFanin) slotUnreachable = true;
+      for (const code of flatPrereqs) {
+        if (isOutOfDept(code)) slotSpillover++;
+      }
+      const isOr = prereqGroups.length > 1;
+      flatPrereqs.forEach((code, i) => {
+        const y = i * ROW_H - ((flatPrereqs.length - 1) * ROW_H) / 2;
+        nodes.push(mkCourseNode(code, COL_X.prereq, y, "prereq"));
+        const groups = groupOfPrereq[code];
+        const labelText = isOr
+          ? groups.length === 1
+            ? `OR · group ${groups[0] + 1}`
+            : `OR · groups ${groups.map((g) => g + 1).join(", ")}`
+          : "AND";
+        edges.push({
+          id: `e-fanin-${code}-focus`,
+          source: `c:${code}`,
+          target: `c:${focusCode}`,
+          label: labelText,
+          labelStyle: {
+            fontSize: 10,
+            fill: COLORS.label,
+            fontFamily:
+              "'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif",
+            fontWeight: 500,
+            letterSpacing: "0.02em",
+          },
+          labelBgStyle: { fill: "#ffffff", stroke: COLORS.border, strokeWidth: 1 },
+          labelBgPadding: [4, 6],
+          labelBgBorderRadius: 4,
+          style: {
+            stroke: COLORS.purple,
+            strokeWidth: 1.5,
+            strokeDasharray: isOr ? "5,4" : undefined,
+          },
+          markerEnd: {
+            type: MarkerType.ArrowClosed,
+            color: COLORS.purple,
+            width: 16,
+            height: 16,
+          },
+        });
+      });
+    }
+
+    nodes.push(mkCourseNode(focusCode, COL_X.focus, 0, "focus"));
+
+    const visibleUnlocks = unlocks.filter((code) => !mutedSet.has(code));
+    visibleUnlocks.forEach((code, i) => {
+      const y = i * ROW_H - ((visibleUnlocks.length - 1) * ROW_H) / 2;
+      nodes.push(mkCourseNode(code, COL_X.unlock, y, "unlock"));
       const eligible = isEligible(code);
       const stroke = eligible ? COLORS.successText : COLORS.bodyMuted;
       edges.push({
-        id: `e-${focusCode}->${code}`,
-        source: focusCode,
-        target: code,
-        animated: false,
+        id: `e-unlock-${focusCode}-${code}`,
+        source: `c:${focusCode}`,
+        target: `c:${code}`,
         style: {
           stroke,
           strokeWidth: eligible ? 1.8 : 1.2,
@@ -299,8 +848,31 @@ function GraphInner({ graph, focusCode, completed, onSelectCourse }: GraphProps)
       });
     });
 
-    return { nodes, edges, hiddenUnlockCount };
-  }, [graph, focusCode, completed, onSelectCourse]);
+    return {
+      nodes,
+      edges,
+      hiddenUnlockCount:
+        Math.max(0, allUnlocks.length - unlocks.length) +
+        (unlocks.length - visibleUnlocks.length),
+      chainTruncated: false,
+      chainNodeCount: 0,
+      unreachable: slotUnreachable,
+      spilloverCount: slotSpillover,
+    };
+  }, [
+    graph,
+    focusCode,
+    completed,
+    onSelectCourse,
+    profile.picks,
+    profile.muted,
+    profile.myDepartments,
+    mutedSet,
+    myDeptSet,
+    setPick,
+    clearPick,
+    expandDepth,
+  ]);
 
   return (
     <ReactFlow
@@ -339,6 +911,74 @@ function GraphInner({ graph, focusCode, completed, onSelectCourse }: GraphProps)
           aria-label={`${hiddenUnlockCount} more unlocked courses not shown`}
         >
           +{hiddenUnlockCount} more unlocks not shown
+        </div>
+      )}
+      {chainNodeCount > 0 && (
+        <div
+          style={{
+            position: "absolute",
+            top: 12,
+            left: 16,
+            padding: "4px 10px",
+            background: "#ffffff",
+            border: `1px solid ${COLORS.border}`,
+            borderRadius: 4,
+            boxShadow: "rgba(23,23,23,0.06) 0px 3px 6px",
+            fontSize: 11,
+            color: COLORS.label,
+            fontVariantNumeric: "tabular-nums",
+            zIndex: 5,
+          }}
+        >
+          {chainNodeCount} course{chainNodeCount === 1 ? "" : "s"} upstream
+          {chainTruncated ? ` (truncated at ${CHAIN_NODE_CAP})` : ""}
+        </div>
+      )}
+      {(unreachable || spilloverCount > 0) && (
+        <div
+          style={{
+            position: "absolute",
+            bottom: 16,
+            left: 16,
+            display: "flex",
+            flexDirection: "column",
+            gap: 6,
+            zIndex: 5,
+          }}
+        >
+          {unreachable && (
+            <div
+              style={{
+                padding: "5px 12px",
+                background: "#fff0f4",
+                border: "1px solid rgba(234, 34, 97, 0.35)",
+                borderRadius: 4,
+                fontSize: 11,
+                color: "#a12252",
+                fontWeight: 500,
+                boxShadow: "rgba(23,23,23,0.06) 0px 3px 6px",
+              }}
+            >
+              Unreachable — every option in at least one slot is hidden.
+            </div>
+          )}
+          {spilloverCount > 0 && (
+            <div
+              style={{
+                padding: "5px 12px",
+                background: "#ffffff",
+                border: `1px solid ${COLORS.border}`,
+                borderRadius: 4,
+                fontSize: 11,
+                color: COLORS.label,
+                boxShadow: "rgba(23,23,23,0.06) 0px 3px 6px",
+                fontVariantNumeric: "tabular-nums",
+              }}
+            >
+              +{spilloverCount} prereq{spilloverCount === 1 ? "" : "s"} outside
+              your departments
+            </div>
+          )}
         </div>
       )}
     </ReactFlow>

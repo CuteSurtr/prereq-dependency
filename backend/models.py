@@ -28,6 +28,7 @@ class Course(Base):
     description: Mapped[str | None] = mapped_column(String, nullable=True)
     raw_prereq_text: Mapped[str | None] = mapped_column(String, nullable=True)
     notes: Mapped[str | None] = mapped_column(String, nullable=True)
+    prereq_slots_json: Mapped[str | None] = mapped_column(String, nullable=True)
 
     prereqs: Mapped[list[Prereq]] = relationship(
         back_populates="course",

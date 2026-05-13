@@ -98,6 +98,28 @@ def load_into(db_path: Path = DB_PATH) -> dict[str, int]:
                         )
                     )
                     stats["edges_inserted"] += 1
+
+            if (
+                result.slots is not None
+                and result.kind == PrereqKind.PREREQ
+            ):
+                cleaned: list[list[str]] = []
+                for slot in result.slots:
+                    alts = [
+                        a for a in slot
+                        if a != course.code and a in known_codes
+                    ]
+                    if alts:
+                        cleaned.append(sorted(set(alts)))
+                if cleaned:
+                    course.prereq_slots_json = json.dumps(cleaned, separators=(",", ":"))
+                    stats["slots_stored"] += 1
+            elif (
+                result.slots is None
+                and result.kind == PrereqKind.PREREQ
+                and result.groups
+            ):
+                stats["slots_unfactored"] += 1
         session.commit()
 
     return dict(stats)

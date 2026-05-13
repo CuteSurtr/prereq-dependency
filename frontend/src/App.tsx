@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Graph } from "./Graph";
 import { loadGraph } from "./data";
+import { useProfile } from "./ProfileContext";
+import { totalPicks } from "./profile";
 import type { GraphData } from "./types";
 
 const COURSE_CODE_RE = /\b[A-Z]{2,5}\s+\d+[A-Z]{0,3}\b/g;
@@ -149,6 +151,14 @@ const labelStyle: React.CSSProperties = {
 
 const DEFAULT_FOCUS = "CSE 110";
 
+const DEPTH_OPTIONS: { value: number; label: string }[] = [
+  { value: 1, label: "Direct prereqs only" },
+  { value: 2, label: "2 levels up" },
+  { value: 3, label: "3 levels up" },
+  { value: 5, label: "5 levels up" },
+  { value: 99, label: "Full upstream chain" },
+];
+
 export default function App() {
   const [graph, setGraph] = useState<GraphData | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -156,6 +166,37 @@ export default function App() {
   const [focus, setFocus] = useState<string>(DEFAULT_FOCUS);
   const [completedRaw, setCompletedRaw] = useState("");
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [expandDepth, setExpandDepth] = useState<number>(1);
+  const [deptsRaw, setDeptsRaw] = useState<string>("");
+  const {
+    profile,
+    clearAllPicks,
+    muteCourse,
+    unmuteCourse,
+    clearAllMutes,
+    setMyDepartments,
+  } = useProfile();
+  const pickCount = totalPicks(profile);
+  const mutedSet = useMemo(() => new Set(profile.muted), [profile.muted]);
+
+  // Seed departments input from persisted state on first load.
+  useEffect(() => {
+    setDeptsRaw(profile.myDepartments.join(", "));
+    // Only on mount: subsequent edits flow user-input -> profile, not back.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const commitDepartments = useCallback(
+    (text: string) => {
+      const parsed = text
+        .toUpperCase()
+        .split(/[,\s]+/)
+        .map((s) => s.trim())
+        .filter((s) => /^[A-Z]{2,5}$/.test(s));
+      setMyDepartments(parsed);
+    },
+    [setMyDepartments],
+  );
 
   useEffect(() => {
     loadGraph()
@@ -325,6 +366,116 @@ export default function App() {
           </div>
         </div>
 
+        <div style={styles.field}>
+          <label style={labelStyle} htmlFor="depth-select">
+            Upstream depth
+          </label>
+          <select
+            id="depth-select"
+            value={expandDepth}
+            onChange={(e) => setExpandDepth(Number(e.target.value))}
+            style={{ fontSize: 12 }}
+          >
+            {DEPTH_OPTIONS.map((opt) => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div style={styles.field}>
+          <label style={labelStyle} htmlFor="dept-input">
+            My departments
+          </label>
+          <input
+            id="dept-input"
+            data-testid="dept-input"
+            value={deptsRaw}
+            onChange={(e) => setDeptsRaw(e.target.value)}
+            onBlur={(e) => commitDepartments(e.target.value)}
+            placeholder='e.g. "CSE, MATH" — empty means all'
+            style={{ fontFamily: "var(--font-mono)", fontSize: 12 }}
+          />
+          {profile.myDepartments.length > 0 && (
+            <span style={{ ...styles.recognizedCount, marginTop: 4 }}>
+              {profile.myDepartments.length} dept
+              {profile.myDepartments.length === 1 ? "" : "s"} · others appear faded
+            </span>
+          )}
+        </div>
+
+        {pickCount > 0 && (
+          <div style={styles.recognizedRow}>
+            <span style={styles.recognizedCount}>
+              {pickCount} pick{pickCount === 1 ? "" : "s"} saved
+            </span>
+            <button
+              className="btn-ghost"
+              onClick={() => clearAllPicks()}
+              style={{ padding: "2px 8px", fontSize: 11 }}
+            >
+              Reset picks
+            </button>
+          </div>
+        )}
+
+        {profile.muted.length > 0 && (
+          <div style={{ ...styles.field, marginBottom: 14 }}>
+            <div style={styles.recognizedRow}>
+              <span style={styles.recognizedCount}>
+                {profile.muted.length} hidden course
+                {profile.muted.length === 1 ? "" : "s"}
+              </span>
+              <button
+                className="btn-ghost"
+                onClick={() => clearAllMutes()}
+                style={{ padding: "2px 8px", fontSize: 11 }}
+              >
+                Unhide all
+              </button>
+            </div>
+            <ul
+              style={{
+                listStyle: "none",
+                padding: 0,
+                margin: "6px 0 0",
+                maxHeight: 120,
+                overflowY: "auto",
+                background: "var(--color-bg-subtle)",
+                border: "1px solid var(--color-border)",
+                borderRadius: "var(--radius-sm)",
+              }}
+              className="scroll-y"
+            >
+              {profile.muted.map((code) => (
+                <li
+                  key={code}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    padding: "4px 8px",
+                    fontFamily: "var(--font-mono)",
+                    fontSize: 11.5,
+                    color: "var(--color-body)",
+                  }}
+                >
+                  <span>{code}</span>
+                  <button
+                    className="btn-ghost"
+                    onClick={() => unmuteCourse(code)}
+                    style={{ padding: "0 6px", fontSize: 11 }}
+                    aria-label={`Unhide ${code}`}
+                  >
+                    Unhide
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
         <div style={styles.legend}>
           <div style={styles.legendRow}>
             <div style={{ ...styles.legendSwatch, borderTopColor: "var(--color-purple)" }} />
@@ -352,6 +503,25 @@ export default function App() {
             <div style={styles.focusTitle}>{focusCourse.title}</div>
             {focusCourse.units && <span style={styles.metaPill}>{focusCourse.units} units</span>}
             {focusCourse.notes && <div style={styles.notesBadge}>{focusCourse.notes}</div>}
+            <div style={{ marginTop: 12 }}>
+              {mutedSet.has(focusCourse.code) ? (
+                <button
+                  className="btn-ghost"
+                  onClick={() => unmuteCourse(focusCourse.code)}
+                  style={{ padding: "4px 10px", fontSize: 11 }}
+                >
+                  Unhide this course
+                </button>
+              ) : (
+                <button
+                  className="btn-ghost"
+                  onClick={() => muteCourse(focusCourse.code)}
+                  style={{ padding: "4px 10px", fontSize: 11 }}
+                >
+                  Hide this course
+                </button>
+              )}
+            </div>
             {focusCourse.raw_prereq_text && (
               <details style={styles.details}>
                 <summary
@@ -404,6 +574,7 @@ export default function App() {
           focusCode={focus}
           completed={completed}
           onSelectCourse={onSelectCourse}
+          expandDepth={expandDepth}
         />
       </main>
     </div>

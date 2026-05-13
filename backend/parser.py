@@ -15,6 +15,7 @@ class PrereqKind(StrEnum):
 class ParseResult:
     kind: PrereqKind
     groups: list[tuple[str, ...]] = field(default_factory=list)
+    slots: list[tuple[str, ...]] | None = None
     notes: str = ""
     confident: bool = True
     raw: str = ""
@@ -519,6 +520,72 @@ class _Parser:
         return Atom("")
 
 
+def _is_empty(node: Node | None) -> bool:
+    if node is None:
+        return True
+    if isinstance(node, Atom):
+        return not node.code
+    return all(_is_empty(c) for c in node.children)
+
+
+def _to_slots(node: Node | None) -> list[tuple[str, ...]] | None:
+    """Factor the AST into flat AND-of-OR slots.
+
+    Returns a list where each element is a tuple of OR-alternatives, and the
+    list itself is AND-joined. Returns None when the AST has nesting that
+    cannot be expressed in flat slot form (an OR whose non-empty children
+    aren't all atoms), in which case callers should fall back to the DNF
+    ``groups``.
+
+    Empty Atoms and empty subtrees (left behind by note-stripping like
+    "or consent of department") are silently dropped so they don't poison
+    factorability.
+    """
+    if node is None:
+        return []
+    if isinstance(node, Atom):
+        return [(node.code,)] if node.code else []
+    if isinstance(node, Or):
+        non_empty = [c for c in node.children if not _is_empty(c)]
+        if not non_empty:
+            return []
+        if len(non_empty) == 1:
+            return _to_slots(non_empty[0])
+        if not all(isinstance(c, Atom) for c in non_empty):
+            return None
+        atoms = [c.code for c in non_empty if isinstance(c, Atom) and c.code]
+        return [tuple(atoms)] if atoms else []
+    if isinstance(node, And):
+        slots: list[tuple[str, ...]] = []
+        for child in node.children:
+            if _is_empty(child):
+                continue
+            child_slots = _to_slots(child)
+            if child_slots is None:
+                return None
+            slots.extend(child_slots)
+        return slots
+    return None
+
+
+def _normalize_slots(slots: list[tuple[str, ...]] | None) -> list[tuple[str, ...]] | None:
+    if slots is None:
+        return None
+    seen: set[frozenset[str]] = set()
+    out: list[tuple[str, ...]] = []
+    for slot in slots:
+        # dedupe within slot, drop empty, preserve sort for stable output
+        unique = tuple(sorted(set(c for c in slot if c)))
+        if not unique:
+            continue
+        key = frozenset(unique)
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append(unique)
+    return out
+
+
 def _to_dnf(node: Node | None) -> list[frozenset[str]]:
     if node is None:
         return []
@@ -573,6 +640,7 @@ def parse(text: str) -> ParseResult:
     ast = _Parser(toks).parse()
     dnf = _to_dnf(ast)
     groups = _dedupe_groups(dnf)
+    slots = _normalize_slots(_to_slots(ast))
 
     extracted = {c for g in groups for c in g}
     found_in_text = {
@@ -582,4 +650,6 @@ def parse(text: str) -> ParseResult:
     }
     confident = bool(groups) and extracted == found_in_text
 
-    return ParseResult(kind=kind, groups=groups, notes=notes, confident=confident, raw=raw)
+    return ParseResult(
+        kind=kind, groups=groups, slots=slots, notes=notes, confident=confident, raw=raw
+    )

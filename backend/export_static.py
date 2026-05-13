@@ -42,6 +42,9 @@ def export(db_path: Path = DB_PATH, out_path: Path = OUT_PATH) -> dict[str, int]
                 sorted(set(members))
                 for _, members in sorted(groups[(c.code, PrereqType.RECOMMENDED)].items())
             ]
+            prereq_slots: list[list[str]] | None = None
+            if c.prereq_slots_json:
+                prereq_slots = json.loads(c.prereq_slots_json)
             courses_out[c.code] = {
                 "code": c.code,
                 "title": c.title,
@@ -51,6 +54,7 @@ def export(db_path: Path = DB_PATH, out_path: Path = OUT_PATH) -> dict[str, int]
                 "raw_prereq_text": c.raw_prereq_text,
                 "notes": c.notes,
                 "prereq_groups": prereq_groups,
+                "prereq_slots": prereq_slots,
                 "coreq_groups": coreq_groups,
                 "recommended_groups": recommended_groups,
             }

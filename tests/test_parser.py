@@ -439,3 +439,58 @@ def test_known_limit_mixed_top_level_left_associative() -> None:
     assert sorted(r.groups) == sorted(
         [G("MATH 20A", "MATH 20B", "MATH 20D"), G("MATH 20C", "MATH 20D")]
     )
+
+
+def test_slots_single_course() -> None:
+    assert parse("MATH 20A").slots == [("MATH 20A",)]
+
+
+def test_slots_pure_and() -> None:
+    assert parse("MATH 20A and MATH 20B").slots == [("MATH 20A",), ("MATH 20B",)]
+
+
+def test_slots_pure_or_collapses_to_one_slot() -> None:
+    r = parse("MATH 20A or MATH 10A")
+    assert r.slots == [("MATH 10A", "MATH 20A")]
+
+
+def test_slots_factored_and_of_or() -> None:
+    r = parse("MATH 20A and (MATH 20B or MATH 10B)")
+    assert r.slots == [("MATH 20A",), ("MATH 10B", "MATH 20B")]
+
+
+def test_slots_cse100_factored_into_three_slots() -> None:
+    # The motivating case: 15 DNF groups collapse to 3 factored slots.
+    r = parse(
+        "CSE 21 or MATH 154 or MATH 158 or MATH 184 or MATH 188 "
+        "and CSE 12 and CSE 15L or CSE 29 or ECE 15"
+    )
+    assert r.slots is not None
+    assert len(r.slots) == 3
+    assert ("CSE 12",) in r.slots
+    assert ("CSE 21", "MATH 154", "MATH 158", "MATH 184", "MATH 188") in r.slots
+    assert ("CSE 15L", "CSE 29", "ECE 15") in r.slots
+
+
+def test_slots_or_of_ands_is_not_factorable() -> None:
+    r = parse("(MATH 20A and MATH 20B) or (MATH 10A and MATH 10B)")
+    assert r.slots is None
+    assert sorted(r.groups) == sorted(
+        [G("MATH 20A", "MATH 20B"), G("MATH 10A", "MATH 10B")]
+    )
+
+
+def test_slots_dropped_consent_clause_does_not_break_factoring() -> None:
+    # The trailing "or consent of department" gets stripped to a note; the
+    # remaining AST is a pure AND and should factor into per-course slots.
+    r = parse("MATH 20D and BENG 103B and BENG 160 or consent of department.")
+    assert r.slots == [("MATH 20D",), ("BENG 103B",), ("BENG 160",)]
+
+
+def test_slots_empty_when_no_prereqs() -> None:
+    assert parse("").slots is None or parse("").slots == []
+
+
+def test_slots_dedupe_repeated_course() -> None:
+    r = parse("MATH 20A or MATH 20A")
+    assert r.slots == [("MATH 20A",)]
