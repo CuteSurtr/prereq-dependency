@@ -3,6 +3,7 @@ import { Graph } from "./Graph";
 import { loadGraph } from "./data";
 import { useProfile } from "./ProfileContext";
 import { totalPicks, type Standing } from "./profile";
+import { loadMajors, type MajorEntry } from "./data";
 import type { GraphData } from "./types";
 
 const COURSE_CODE_RE = /\b[A-Z]{2,5}\s+\d+[A-Z]{0,3}\b/g;
@@ -190,16 +191,24 @@ export default function App() {
     setMyMajorCodes,
     setHideMajorRestricted,
   } = useProfile();
-  // Seed the departments / major-codes inputs synchronously from the
-  // persisted profile so the field never flickers empty on first paint.
+  // Seed the departments input synchronously from the persisted profile
+  // so the field never flickers empty on first paint.
   const [deptsRaw, setDeptsRaw] = useState<string>(() =>
     profile.myDepartments.join(", "),
   );
-  const [majorsRaw, setMajorsRaw] = useState<string>(() =>
-    profile.myMajorCodes.join(", "),
-  );
+  const [majorPickerInput, setMajorPickerInput] = useState<string>("");
+  const [majors, setMajors] = useState<MajorEntry[]>([]);
   const pickCount = totalPicks(profile);
   const mutedSet = useMemo(() => new Set(profile.muted), [profile.muted]);
+  const majorByCode = useMemo(() => {
+    const m = new Map<string, MajorEntry>();
+    for (const row of majors) m.set(row.code, row);
+    return m;
+  }, [majors]);
+
+  useEffect(() => {
+    loadMajors().then(setMajors).catch(() => setMajors([]));
+  }, []);
 
   const commitDepartments = useCallback(
     (text: string) => {
@@ -213,17 +222,29 @@ export default function App() {
     [setMyDepartments],
   );
 
-  const commitMajorCodes = useCallback(
-    (text: string) => {
-      // Tolerant of common typing patterns: "cs27", "CS 27", "CS27, BE25",
-      // "cs 27 / be25". Pull every 2-letter + (optional space) + 2-digit run
-      // out of the string and normalize.
-      const parsed = (text.toUpperCase().match(/[A-Z]{2}\s*\d{2}/g) ?? []).map(
-        (s) => s.replace(/\s+/g, ""),
-      );
-      setMyMajorCodes(parsed);
+  const addMajorCode = useCallback(
+    (raw: string) => {
+      // Tolerant: accept "CS27", "cs 27", or any datalist label whose value
+      // is the code. Take the first XX## run we find.
+      const m = raw.toUpperCase().match(/[A-Z]{2}\s*\d{2}/);
+      if (!m) return false;
+      const code = m[0].replace(/\s+/g, "");
+      if (profile.myMajorCodes.includes(code)) {
+        setMajorPickerInput("");
+        return true;
+      }
+      setMyMajorCodes([...profile.myMajorCodes, code]);
+      setMajorPickerInput("");
+      return true;
     },
-    [setMyMajorCodes],
+    [profile.myMajorCodes, setMyMajorCodes],
+  );
+
+  const removeMajorCode = useCallback(
+    (code: string) => {
+      setMyMajorCodes(profile.myMajorCodes.filter((c) => c !== code));
+    },
+    [profile.myMajorCodes, setMyMajorCodes],
   );
 
   useEffect(() => {
@@ -434,36 +455,108 @@ export default function App() {
 
         <div style={styles.field}>
           <label style={labelStyle} htmlFor="major-input">
-            My major code(s)
+            My major(s)
           </label>
+          {profile.myMajorCodes.length > 0 && (
+            <div
+              style={{
+                display: "flex",
+                flexWrap: "wrap",
+                gap: 4,
+                marginBottom: 6,
+              }}
+            >
+              {profile.myMajorCodes.map((code) => {
+                const m = majorByCode.get(code);
+                return (
+                  <span
+                    key={code}
+                    title={m ? `${m.name} (${m.department})` : "Unknown code"}
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 4,
+                      padding: "2px 4px 2px 8px",
+                      fontSize: 11,
+                      fontFamily: "var(--font-mono)",
+                      color: "var(--color-purple)",
+                      background: "var(--color-purple-tint)",
+                      borderRadius: "var(--radius-sm)",
+                      lineHeight: 1.3,
+                    }}
+                  >
+                    {code}
+                    <button
+                      onClick={() => removeMajorCode(code)}
+                      aria-label={`Remove ${code}`}
+                      style={{
+                        background: "transparent",
+                        border: 0,
+                        padding: "0 4px",
+                        color: "var(--color-purple)",
+                        cursor: "pointer",
+                        fontSize: 13,
+                        lineHeight: 1,
+                      }}
+                    >
+                      ×
+                    </button>
+                  </span>
+                );
+              })}
+            </div>
+          )}
           <input
             id="major-input"
             data-testid="major-input"
-            value={majorsRaw}
+            list="majors-datalist"
+            value={majorPickerInput}
             onChange={(e) => {
-              setMajorsRaw(e.target.value);
-              commitMajorCodes(e.target.value);
+              const v = e.target.value;
+              setMajorPickerInput(v);
+              // Picking from the datalist sets the input to the option's value
+              // (the code). Detect a successful match and add to chips.
+              if (majorByCode.has(v.toUpperCase())) {
+                addMajorCode(v);
+              }
             }}
-            placeholder='e.g. "CS27" or "BE25, BE27"'
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                addMajorCode(majorPickerInput);
+              }
+            }}
+            placeholder={
+              majors.length
+                ? "Search by name or code (e.g. 'Computer' or 'CS27')"
+                : "Code only (e.g. CS27)"
+            }
             style={{ fontFamily: "var(--font-mono)", fontSize: 12 }}
           />
-          {profile.myMajorCodes.length > 0 ? (
-            <span style={{ ...styles.recognizedCount, marginTop: 4 }}>
-              {profile.myMajorCodes.length} code
-              {profile.myMajorCodes.length === 1 ? "" : "s"} saved
-            </span>
-          ) : majorsRaw.trim().length > 0 ? (
-            <span
-              style={{
-                ...styles.recognizedCount,
-                marginTop: 4,
-                color: "var(--color-ruby)",
-              }}
-            >
-              No major codes recognized. Format: two letters + two digits,
-              e.g. CS27, BE25, MA33.
-            </span>
-          ) : null}
+          {majors.length > 0 && (
+            <datalist id="majors-datalist">
+              {majors.map((m) => (
+                <option
+                  key={m.code}
+                  value={m.code}
+                  label={`${m.name} - ${m.department}`}
+                />
+              ))}
+            </datalist>
+          )}
+          {majorPickerInput.trim().length > 0 &&
+            !majorByCode.has(majorPickerInput.toUpperCase()) &&
+            !/^[A-Z]{2}\s*\d{2}$/i.test(majorPickerInput.trim()) && (
+              <span
+                style={{
+                  ...styles.recognizedCount,
+                  marginTop: 4,
+                  color: "var(--color-body)",
+                }}
+              >
+                Pick a result, or press Enter to add as a custom code.
+              </span>
+            )}
         </div>
 
         <div style={{ ...styles.field, marginBottom: 14, gap: 6 }}>

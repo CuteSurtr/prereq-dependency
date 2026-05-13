@@ -1,6 +1,13 @@
 import type { GraphData } from "./types";
 
+export type MajorEntry = {
+  code: string;
+  name: string;
+  department: string;
+};
+
 let cached: Promise<GraphData> | null = null;
+let cachedMajors: Promise<MajorEntry[]> | null = null;
 
 export function loadGraph(): Promise<GraphData> {
   if (!cached) {
@@ -16,6 +23,21 @@ export function loadGraph(): Promise<GraphData> {
       });
   }
   return cached;
+}
+
+/**
+ * Lazy-load the registrar's major-code list shipped alongside graph.json.
+ * Falls back to an empty list if the file isn't present so the rest of the
+ * app keeps working in older deploys.
+ */
+export function loadMajors(): Promise<MajorEntry[]> {
+  if (!cachedMajors) {
+    const url = `${import.meta.env.BASE_URL}majors.json`.replace(/\/+/g, "/");
+    cachedMajors = fetch(url)
+      .then((r) => (r.ok ? (r.json() as Promise<MajorEntry[]>) : []))
+      .catch(() => []);
+  }
+  return cachedMajors;
 }
 
 export function isEligible(courseCode: string, completed: Set<string>, graph: GraphData): boolean {

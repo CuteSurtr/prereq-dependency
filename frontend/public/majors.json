@@ -1,0 +1,967 @@
+[
+  {
+    "code": "AT25",
+    "name": "Astronomy & Astrophysics (B.S.)",
+    "department": "Astronomy & Astrophysics"
+  },
+  {
+    "code": "AT27",
+    "name": "Astrophysical Sciences (B.S.)",
+    "department": "Astronomy & Astrophysics"
+  },
+  {
+    "code": "AN27",
+    "name": "Anthropology (Concentration in Archaeology)",
+    "department": "Anthropology"
+  },
+  {
+    "code": "AN26",
+    "name": "Anthropology (Concentration in Biological Anthropology)",
+    "department": "Anthropology"
+  },
+  {
+    "code": "AN28",
+    "name": "Anthropology (Concentration in Sociocultural Anthropology)",
+    "department": "Anthropology"
+  },
+  {
+    "code": "AN30",
+    "name": "Anthropology with a Concentration in Climate Change and Human Solutions",
+    "department": "Anthropology"
+  },
+  {
+    "code": "AN29",
+    "name": "Biological Anthropology",
+    "department": "Anthropology"
+  },
+  {
+    "code": "AN31",
+    "name": "Environmental Anthropology",
+    "department": "Anthropology"
+  },
+  {
+    "code": "BE25",
+    "name": "Bioengineering",
+    "department": "Bioengineering"
+  },
+  {
+    "code": "BE28",
+    "name": "Bioengineering (Bioinformatics)",
+    "department": "Bioengineering"
+  },
+  {
+    "code": "BE29",
+    "name": "Bioengineering: BioSystems",
+    "department": "Bioengineering"
+  },
+  {
+    "code": "BE27",
+    "name": "Bioengineering (Biotechnology)",
+    "department": "Bioengineering"
+  },
+  {
+    "code": "BI34",
+    "name": "Biology with Specialization in Bioinformatics",
+    "department": "Biology"
+  },
+  {
+    "code": "BI30",
+    "name": "Ecology, Behavior, and Evolution",
+    "department": "Biology"
+  },
+  {
+    "code": "BI31",
+    "name": "General Biology",
+    "department": "Biology"
+  },
+  {
+    "code": "BI35",
+    "name": "Human Biology",
+    "department": "Biology"
+  },
+  {
+    "code": "BI32",
+    "name": "Microbiology",
+    "department": "Biology"
+  },
+  {
+    "code": "BI37",
+    "name": "Molecular and Cell Biology",
+    "department": "Biology"
+  },
+  {
+    "code": "BI38",
+    "name": "Neurobiology",
+    "department": "Biology"
+  },
+  {
+    "code": "AA25",
+    "name": "Black Diaspora and African American Studies",
+    "department": "Black Diaspora and African American Studies"
+  },
+  {
+    "code": "CE25",
+    "name": "Chemical Engineering",
+    "department": "Chemical Engineering"
+  },
+  {
+    "code": "CH38",
+    "name": "Biochemistry",
+    "department": "Chemistry and Biochemistry"
+  },
+  {
+    "code": "CH25",
+    "name": "Chemistry",
+    "department": "Chemistry and Biochemistry"
+  },
+  {
+    "code": "CH34",
+    "name": "Environmental Chemistry",
+    "department": "Chemistry and Biochemistry"
+  },
+  {
+    "code": "CH36",
+    "name": "Molecular Synthesis",
+    "department": "Chemistry and Biochemistry"
+  },
+  {
+    "code": "CH35",
+    "name": "Pharmacological Chemistry",
+    "department": "Chemistry and Biochemistry"
+  },
+  {
+    "code": "CX25",
+    "name": "Chicanx and Latinx Studies",
+    "department": "Chicanx and Latinx Studies"
+  },
+  {
+    "code": "CN25",
+    "name": "Chinese Studies",
+    "department": "Chinese Studies"
+  },
+  {
+    "code": "CI25",
+    "name": "Cinematic Arts",
+    "department": "Cinematic Arts"
+  },
+  {
+    "code": "CL25",
+    "name": "Classical Studies",
+    "department": "Classical Studies"
+  },
+  {
+    "code": "CG25",
+    "name": "Cognitive Science (B.A.)",
+    "department": "Cognitive Science"
+  },
+  {
+    "code": "CG32",
+    "name": "Cognitive and Behavioral Neuroscience",
+    "department": "Cognitive Science"
+  },
+  {
+    "code": "CG31",
+    "name": "Cognitive Science with a Specialization in Clinical Aspects of Cognition",
+    "department": "Cognitive Science"
+  },
+  {
+    "code": "CG33",
+    "name": "Cognitive Science with a Specialization in Design and Interaction",
+    "department": "Cognitive Science"
+  },
+  {
+    "code": "CG34",
+    "name": "Cognitive Science with a Specialization in Language and Culture",
+    "department": "Cognitive Science"
+  },
+  {
+    "code": "CG35",
+    "name": "Cognitive Science with a Specialization in Machine Learning and Neural Computation",
+    "department": "Cognitive Science"
+  },
+  {
+    "code": "CG29",
+    "name": "Cognitive Science with a Specialization in Neuroscience",
+    "department": "Cognitive Science"
+  },
+  {
+    "code": "UN52",
+    "name": "Marshall College Honors Program",
+    "department": "College Honors Programs"
+  },
+  {
+    "code": "UN52",
+    "name": "Roosevelt Coll Honors Program",
+    "department": "College Honors Programs"
+  },
+  {
+    "code": "CM26",
+    "name": "Communication",
+    "department": "Communication"
+  },
+  {
+    "code": "CM28",
+    "name": "Media Industries and Communication",
+    "department": "Communication"
+  },
+  {
+    "code": "CS25",
+    "name": "Computer Engineering (See also Electrical and Computer Engineering EC26)",
+    "department": "Computer Science and Engineering"
+  },
+  {
+    "code": "CS26",
+    "name": "Computer Science (B.S.)",
+    "department": "Computer Science and Engineering"
+  },
+  {
+    "code": "CS27",
+    "name": "Computer Science with a Specialization in Bioinformatics",
+    "department": "Computer Science and Engineering"
+  },
+  {
+    "code": "CS29",
+    "name": "Artificial Intelligence",
+    "department": "Computer Science and Engineering"
+  },
+  {
+    "code": "CR25",
+    "name": "Critical Gender Studies",
+    "department": "Critical Gender Studies"
+  },
+  {
+    "code": "DS25",
+    "name": "Data Science",
+    "department": "Data Science"
+  },
+  {
+    "code": "EN30",
+    "name": "Business Economics",
+    "department": "Economics"
+  },
+  {
+    "code": "EN25",
+    "name": "Economics (B.A.)",
+    "department": "Economics"
+  },
+  {
+    "code": "EN31",
+    "name": "Economics (B.S.)",
+    "department": "Economics"
+  },
+  {
+    "code": "EN29",
+    "name": "Economics-Public Policy (B.A./MPP only)",
+    "department": "Economics"
+  },
+  {
+    "code": "EN28",
+    "name": "Joint Major in Mathematics and Economics",
+    "department": "Economics"
+  },
+  {
+    "code": "ED25",
+    "name": "Education Sciences",
+    "department": "Education Studies"
+  },
+  {
+    "code": "EC26",
+    "name": "Computer Engineering (see also Computer Science and Engineering CS25)",
+    "department": "Electrical and Computer Engineering"
+  },
+  {
+    "code": "EC27",
+    "name": "Electrical Engineering",
+    "department": "Electrical and Computer Engineering"
+  },
+  {
+    "code": "EC28",
+    "name": "Engineering Physics",
+    "department": "Electrical and Computer Engineering"
+  },
+  {
+    "code": "EC37",
+    "name": "Electrical Engineering & Society (B.A.)",
+    "department": "Electrical and Computer Engineering"
+  },
+  {
+    "code": "ES25",
+    "name": "Environmental Systems (Earth Sciences)",
+    "department": "Environmental Systems"
+  },
+  {
+    "code": "ES26",
+    "name": "Environmental Systems (Ecology, Behavior, and Evolution)",
+    "department": "Environmental Systems"
+  },
+  {
+    "code": "ES27",
+    "name": "Environmental Systems (Environmental Chemistry)",
+    "department": "Environmental Systems"
+  },
+  {
+    "code": "ES28",
+    "name": "Environmental Systems (Environmental Policy)",
+    "department": "Environmental Systems"
+  },
+  {
+    "code": "ET25",
+    "name": "Ethnic Studies",
+    "department": "Ethnic Studies"
+  },
+  {
+    "code": "GS25",
+    "name": "German Studies - Admissions Paused through Spring 2028",
+    "department": "German Studies"
+  },
+  {
+    "code": "GH25",
+    "name": "Global Health (B.A.)",
+    "department": "Global Health"
+  },
+  {
+    "code": "GH26",
+    "name": "Global Health (B.S.)",
+    "department": "Global Health"
+  },
+  {
+    "code": "GL25",
+    "name": "Global South Studies- Admissions Paused through Spring 2029",
+    "department": "Global South Studies"
+  },
+  {
+    "code": "PB25",
+    "name": "Public Health",
+    "department": "Herbert Wertheim School of Public Health and Human Longevity Science"
+  },
+  {
+    "code": "PB26",
+    "name": "Public Health with Concentration in Biostatistics",
+    "department": "Herbert Wertheim School of Public Health and Human Longevity Science"
+  },
+  {
+    "code": "PB27",
+    "name": "Public Health with Concentration in Climate and Environmental Sciences",
+    "department": "Herbert Wertheim School of Public Health and Human Longevity Science"
+  },
+  {
+    "code": "PB28",
+    "name": "Public Health with Concentration in Community Health Sciences",
+    "department": "Herbert Wertheim School of Public Health and Human Longevity Science"
+  },
+  {
+    "code": "PB29",
+    "name": "Public Health with Concentration in Epidemiology",
+    "department": "Herbert Wertheim School of Public Health and Human Longevity Science"
+  },
+  {
+    "code": "PB30",
+    "name": "Public Health with Concentration in Health Policy and Management Sciences",
+    "department": "Herbert Wertheim School of Public Health and Human Longevity Science"
+  },
+  {
+    "code": "PB31",
+    "name": "Public Health with Concentration in Medicine Sciences",
+    "department": "Herbert Wertheim School of Public Health and Human Longevity Science"
+  },
+  {
+    "code": "PB32",
+    "name": "Public Health",
+    "department": "Herbert Wertheim School of Public Health and Human Longevity Science"
+  },
+  {
+    "code": "HI25",
+    "name": "History",
+    "department": "History"
+  },
+  {
+    "code": "HS25",
+    "name": "Human Developmental Sciences (B.A.)",
+    "department": "Human Developmental Sciences"
+  },
+  {
+    "code": "HS26",
+    "name": "Human Developmental Sciences (B.S.)",
+    "department": "Human Developmental Sciences"
+  },
+  {
+    "code": "HS27",
+    "name": "Human Developmental Sciences with a Specialization in Equity and Diversity",
+    "department": "Human Developmental Sciences"
+  },
+  {
+    "code": "HS28",
+    "name": "Human Developmental Sciences with a Specialization in Healthy Aging",
+    "department": "Human Developmental Sciences"
+  },
+  {
+    "code": "IN33",
+    "name": "Eighth College Individual Studies",
+    "department": "Individual Studies"
+  },
+  {
+    "code": "IN27",
+    "name": "Eleanor Roosevelt College Individual Studies",
+    "department": "Individual Studies"
+  },
+  {
+    "code": "IN25",
+    "name": "Muir College Special Project Major",
+    "department": "Individual Studies"
+  },
+  {
+    "code": "IN26",
+    "name": "Revelle College Individual Major (B.A.)",
+    "department": "Individual Studies"
+  },
+  {
+    "code": "IN29",
+    "name": "Thurgood Marshall College Individual Studies",
+    "department": "Individual Studies"
+  },
+  {
+    "code": "IN28",
+    "name": "Warren College Individual Studies (B.A.)",
+    "department": "Individual Studies"
+  },
+  {
+    "code": "IN30",
+    "name": "Sixth College Individual Studies",
+    "department": "Individual Studies"
+  },
+  {
+    "code": "IN32",
+    "name": "Seventh College Individual Studies",
+    "department": "Individual Studies"
+  },
+  {
+    "code": "IS25",
+    "name": "International Studies \u2014 Anthropology",
+    "department": "International Studies"
+  },
+  {
+    "code": "IS26",
+    "name": "International Studies \u2014 Economics",
+    "department": "International Studies"
+  },
+  {
+    "code": "IS27",
+    "name": "International Studies \u2014 History",
+    "department": "International Studies"
+  },
+  {
+    "code": "IS28",
+    "name": "International Studies \u2014 Linguistics",
+    "department": "International Studies"
+  },
+  {
+    "code": "IS29",
+    "name": "International Studies \u2014 Literature",
+    "department": "International Studies"
+  },
+  {
+    "code": "IS30",
+    "name": "International Studies \u2014 Political Science",
+    "department": "International Studies"
+  },
+  {
+    "code": "IS31",
+    "name": "International Studies \u2014 Sociology",
+    "department": "International Studies"
+  },
+  {
+    "code": "IS32",
+    "name": "International Studies \u2014 Economics (Jt BA/MIA)",
+    "department": "International Studies"
+  },
+  {
+    "code": "IS33",
+    "name": "International Studies \u2014 Political Science (Jt BA/MIA)",
+    "department": "International Studies"
+  },
+  {
+    "code": "IS34",
+    "name": "International Studies \u2014 International Business",
+    "department": "International Studies"
+  },
+  {
+    "code": "IS35",
+    "name": "International Studies \u2014 International Business (Jt BA/MIA)",
+    "department": "International Studies"
+  },
+  {
+    "code": "IS36",
+    "name": "International Studies \u2014 Philosophy",
+    "department": "International Studies"
+  },
+  {
+    "code": "IT25",
+    "name": "Italian Studies - Admissions Paused through Spring 2028",
+    "department": "Italian Studies"
+  },
+  {
+    "code": "JA25",
+    "name": "Japanese Studies",
+    "department": "Japanese Studies"
+  },
+  {
+    "code": "JS25",
+    "name": "Jewish Studies",
+    "department": "Jewish Studies"
+  },
+  {
+    "code": "LA25",
+    "name": "Latin American Studies",
+    "department": "Latin American Studies"
+  },
+  {
+    "code": "LA26",
+    "name": "Latin American Studies with a Concentration in Mexico",
+    "department": "Latin American Studies"
+  },
+  {
+    "code": "LA27",
+    "name": "Latin American Studies with a Concentration in Migration and Border Studies",
+    "department": "Latin American Studies"
+  },
+  {
+    "code": "LN33",
+    "name": "Language Studies",
+    "department": "Linguistics"
+  },
+  {
+    "code": "LN25",
+    "name": "Linguistics",
+    "department": "Linguistics"
+  },
+  {
+    "code": "LN32",
+    "name": "Linguistics (Specialization in Cognition and Language)",
+    "department": "Linguistics"
+  },
+  {
+    "code": "LN29",
+    "name": "Linguistics (Specialization in Language and Society)",
+    "department": "Linguistics"
+  },
+  {
+    "code": "LN34",
+    "name": "Linguistics (Specialization in Speech and Language Sciences)",
+    "department": "Linguistics"
+  },
+  {
+    "code": "LT42",
+    "name": "Literary Arts",
+    "department": "Literature"
+  },
+  {
+    "code": "LT36",
+    "name": "Literatures in English",
+    "department": "Literature"
+  },
+  {
+    "code": "LT33",
+    "name": "Spanish Literature",
+    "department": "Literature"
+  },
+  {
+    "code": "LT41",
+    "name": "World Literature and Culture",
+    "department": "Literature"
+  },
+  {
+    "code": "MA33",
+    "name": "Joint Major Mathematics & Economics",
+    "department": "Mathematics"
+  },
+  {
+    "code": "MA36",
+    "name": "Mathematical Biology",
+    "department": "Mathematics"
+  },
+  {
+    "code": "MA29",
+    "name": "Mathematics",
+    "department": "Mathematics"
+  },
+  {
+    "code": "MA27",
+    "name": "Mathematics (Applied)",
+    "department": "Mathematics"
+  },
+  {
+    "code": "MA31",
+    "name": "Mathematics \u2014 Applied Science",
+    "department": "Mathematics"
+  },
+  {
+    "code": "MA30",
+    "name": "Mathematics \u2014 Computer Science",
+    "department": "Mathematics"
+  },
+  {
+    "code": "MA32",
+    "name": "Mathematics \u2014 Secondary Education",
+    "department": "Mathematics"
+  },
+  {
+    "code": "MA35",
+    "name": "Probability & Statistics",
+    "department": "Mathematics"
+  },
+  {
+    "code": "MC25",
+    "name": "Aerospace Engineering",
+    "department": "Mechanical and Aerospace Engineering"
+  },
+  {
+    "code": "MC37",
+    "name": "Aerospace Engineering with a Specialization in Aerothermodynamics",
+    "department": "Mechanical and Aerospace Engineering"
+  },
+  {
+    "code": "MC36",
+    "name": "Aerospace Engineering with a Specialization in Astrodynamics and Space Applications",
+    "department": "Mechanical and Aerospace Engineering"
+  },
+  {
+    "code": "MC35",
+    "name": "Aerospace Engineering with a Specialization in Flight Dynamics and Controls",
+    "department": "Mechanical and Aerospace Engineering"
+  },
+  {
+    "code": "MC27",
+    "name": "Mechanical Engineering",
+    "department": "Mechanical and Aerospace Engineering"
+  },
+  {
+    "code": "MC34",
+    "name": "Mechanical Engineering with a Specialization in Controls and Robotics",
+    "department": "Mechanical and Aerospace Engineering"
+  },
+  {
+    "code": "MC33",
+    "name": "Mechanical Engineering with a Specialization in Fluid Mechanics and Thermal Systems",
+    "department": "Mechanical and Aerospace Engineering"
+  },
+  {
+    "code": "MC32",
+    "name": "Mechanical Engineering with a Specialization in Materials Science and Engineering",
+    "department": "Mechanical and Aerospace Engineering"
+  },
+  {
+    "code": "MC31",
+    "name": "Mechanical Engineering with a Specialization in Mechanics of Materials",
+    "department": "Mechanical and Aerospace Engineering"
+  },
+  {
+    "code": "MC30",
+    "name": "Mechanical Engineering with a Specialization in Renewable Energy and Environmental Flows",
+    "department": "Mechanical and Aerospace Engineering"
+  },
+  {
+    "code": "MU27",
+    "name": "Interdisciplinary Computing and the Arts",
+    "department": "Mechanical and Aerospace Engineering"
+  },
+  {
+    "code": "MU25",
+    "name": "Music",
+    "department": "Mechanical and Aerospace Engineering"
+  },
+  {
+    "code": "MU26",
+    "name": "Music Humanities",
+    "department": "Mechanical and Aerospace Engineering"
+  },
+  {
+    "code": "NA25",
+    "name": "Nanoengineering",
+    "department": "Nanoengineering"
+  },
+  {
+    "code": "PL25",
+    "name": "Philosophy",
+    "department": "Philosophy"
+  },
+  {
+    "code": "PY35",
+    "name": "Physics (B.A.)",
+    "department": "Philosophy"
+  },
+  {
+    "code": "PY29",
+    "name": "Physics (B.S.)",
+    "department": "Philosophy"
+  },
+  {
+    "code": "PS25",
+    "name": "Political Science",
+    "department": "Political Science"
+  },
+  {
+    "code": "PS26",
+    "name": "Political Science/American Politics",
+    "department": "Political Science"
+  },
+  {
+    "code": "PS27",
+    "name": "Political Science/Comparative Politics",
+    "department": "Political Science"
+  },
+  {
+    "code": "PS28",
+    "name": "Political Science/International Relations",
+    "department": "Political Science"
+  },
+  {
+    "code": "PS29",
+    "name": "Political Science/Political Theory",
+    "department": "Political Science"
+  },
+  {
+    "code": "PS30",
+    "name": "Political Science/Public Law",
+    "department": "Political Science"
+  },
+  {
+    "code": "PS31",
+    "name": "Political Science/Public Policy",
+    "department": "Political Science"
+  },
+  {
+    "code": "PS32",
+    "name": "Political Science/Data Analytics",
+    "department": "Political Science"
+  },
+  {
+    "code": "PS33",
+    "name": "Political Science/International Affairs (B.A./MIA only)",
+    "department": "Political Science"
+  },
+  {
+    "code": "PS34",
+    "name": "Political Science/Race, Ethnicity, and Politics",
+    "department": "Political Science"
+  },
+  {
+    "code": "PC25",
+    "name": "Psychology (B.A.)",
+    "department": "Psychology"
+  },
+  {
+    "code": "PC26",
+    "name": "Psychology (B.S.)",
+    "department": "Psychology"
+  },
+  {
+    "code": "PC28",
+    "name": "Psychology with a Specialization in Clinical Psychology",
+    "department": "Psychology"
+  },
+  {
+    "code": "PC29",
+    "name": "Psychology with a Specialization in Cognitive Psychology",
+    "department": "Psychology"
+  },
+  {
+    "code": "PC30",
+    "name": "Psychology with a Specialization in Developmental Psychology",
+    "department": "Psychology"
+  },
+  {
+    "code": "PC31",
+    "name": "Psychology with a Specialization in Human Health",
+    "department": "Psychology"
+  },
+  {
+    "code": "PC32",
+    "name": "Psychology with a Specialization in Sensation and Perception",
+    "department": "Psychology"
+  },
+  {
+    "code": "PC33",
+    "name": "Psychology with a Specialization in Social Psychology",
+    "department": "Psychology"
+  },
+  {
+    "code": "PC34",
+    "name": "Cognitive and Behavioral Neuroscience",
+    "department": "Psychology"
+  },
+  {
+    "code": "PC35",
+    "name": "Business Psychology",
+    "department": "Psychology"
+  },
+  {
+    "code": "PC36",
+    "name": "Psychology with a Specialization in Clinical Psychology",
+    "department": "Psychology"
+  },
+  {
+    "code": "PC37",
+    "name": "Experimental Psychology",
+    "department": "Psychology"
+  },
+  {
+    "code": "RE26",
+    "name": "Study of Religion",
+    "department": "Religion, Program for the Study of"
+  },
+  {
+    "code": "RU26",
+    "name": "Russian, East European and Eurasian Studies",
+    "department": "Russian and Soviet Studies"
+  },
+  {
+    "code": "SI31",
+    "name": "Geosciences",
+    "department": "Scripps Institution of Oceanography"
+  },
+  {
+    "code": "SI29",
+    "name": "Marine Biology",
+    "department": "Scripps Institution of Oceanography"
+  },
+  {
+    "code": "SI30",
+    "name": "Oceanic and Atmospheric Sciences",
+    "department": "Scripps Institution of Oceanography"
+  },
+  {
+    "code": "SI32",
+    "name": "Oceanic and Atmospheric Science - Public Policy (B.S./MPP only)",
+    "department": "Scripps Institution of Oceanography"
+  },
+  {
+    "code": "SO25",
+    "name": "Sociology",
+    "department": "Sociology"
+  },
+  {
+    "code": "SO27",
+    "name": "Sociology-American Studies",
+    "department": "Sociology"
+  },
+  {
+    "code": "SO28",
+    "name": "Sociology-Culture and Communication",
+    "department": "Sociology"
+  },
+  {
+    "code": "SO29",
+    "name": "Sociology-Economy and Society",
+    "department": "Sociology"
+  },
+  {
+    "code": "SO30",
+    "name": "Sociology-International Studies",
+    "department": "Sociology"
+  },
+  {
+    "code": "SO31",
+    "name": "Sociology-Law and Society",
+    "department": "Sociology"
+  },
+  {
+    "code": "SO32",
+    "name": "Sociology-Science and Medicine",
+    "department": "Sociology"
+  },
+  {
+    "code": "SO33",
+    "name": "Sociology-Social Inequality",
+    "department": "Sociology"
+  },
+  {
+    "code": "SE27",
+    "name": "Structural Engineering",
+    "department": "Structural Engineering"
+  },
+  {
+    "code": "SE29",
+    "name": "Structural Engineering with a Specialization in Aerospace Structures",
+    "department": "Structural Engineering"
+  },
+  {
+    "code": "SE28",
+    "name": "Structural Engineering with a Specialization in Civil Structures",
+    "department": "Structural Engineering"
+  },
+  {
+    "code": "SE30",
+    "name": "Structural Engineering with a Specialization in Geotechnical Engineering",
+    "department": "Structural Engineering"
+  },
+  {
+    "code": "SE31",
+    "name": "Structural Engineering with a Specialization in Structural Health Monitoring/Non-Destructive Evaluation",
+    "department": "Structural Engineering"
+  },
+  {
+    "code": "TH27",
+    "name": "Dance",
+    "department": "Theatre and Dance"
+  },
+  {
+    "code": "TH26",
+    "name": "Theatre",
+    "department": "Theatre and Dance"
+  },
+  {
+    "code": "UN27",
+    "name": "Undeclared",
+    "department": "Undeclared"
+  },
+  {
+    "code": "UNHA",
+    "name": "Undeclared \u2014 Humanities/ Arts",
+    "department": "Undeclared"
+  },
+  {
+    "code": "UNPS",
+    "name": "Undeclared \u2014 Physical Sciences",
+    "department": "Undeclared"
+  },
+  {
+    "code": "UNSS",
+    "name": "Undeclared \u2014 Social Sciences",
+    "department": "Undeclared"
+  },
+  {
+    "code": "US26",
+    "name": "Urban Studies and Planning",
+    "department": "Urban Studies and Planning"
+  },
+  {
+    "code": "US27",
+    "name": "Real Estate and Development",
+    "department": "Urban Studies and Planning"
+  },
+  {
+    "code": "VA29",
+    "name": "Interdisciplinary Computing and the Arts",
+    "department": "Urban Studies and Planning"
+  },
+  {
+    "code": "VA26",
+    "name": "Visual Arts (Art History/ Criticism)",
+    "department": "Urban Studies and Planning"
+  },
+  {
+    "code": "VA27",
+    "name": "Visual Arts (Media)",
+    "department": "Urban Studies and Planning"
+  },
+  {
+    "code": "VA28",
+    "name": "Visual Arts (Studio)",
+    "department": "Urban Studies and Planning"
+  },
+  {
+    "code": "VA30",
+    "name": "Speculative Design",
+    "department": "Urban Studies and Planning"
+  }
+]
