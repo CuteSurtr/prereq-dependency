@@ -1,5 +1,6 @@
 import type DagreType from "dagre";
 import { useEffect, useMemo, useState } from "react";
+import { computeRedundantDirects } from "./cascade";
 import ReactFlow, {
   Background,
   BackgroundVariant,
@@ -470,6 +471,11 @@ function GraphInner({
     () => new Set(profile.myDepartments),
     [profile.myDepartments],
   );
+  const redundantDirects = useMemo(
+    () => (profile.hideCascading ? computeRedundantDirects(graph) : null),
+    [graph, profile.hideCascading],
+  );
+  const cascadeSet = redundantDirects?.get(focusCode);
 
   const {
     nodes,
@@ -692,41 +698,66 @@ function GraphInner({
     let slotSpillover = 0;
 
     if (useSlots) {
-      // Apply mute filter to each slot's alternatives. If a slot becomes
-      // empty under mutes, the focus course is unreachable — render the
-      // original alts as a "muted-out" slot so the user sees what was hidden.
-      const filteredSlots: { alts: string[]; muted: boolean }[] = slots.map((alts) => {
-        const kept = alts.filter((a) => !mutedSet.has(a));
-        if (kept.length === 0) return { alts, muted: true };
-        return { alts: kept, muted: false };
-      });
-      if (filteredSlots.some((s) => s.muted)) slotUnreachable = true;
+      // Build the list of slots to actually render, preserving each slot's
+      // original index (for pick state) even when intermediate slots are
+      // skipped by cascade filtering.
+      //
+      // Order of filters:
+      //  1. Mute filter — drop user-hidden alts. Empty slot ⇒ unreachable.
+      //  2. Cascade filter — drop alts that are transitively implied by some
+      //     other direct prereq (when "Hide redundant" is on). If every
+      //     remaining alt is redundant, drop the slot entirely.
+      type SlotRender = {
+        origIdx: number;
+        alts: string[];
+        muted: boolean;
+      };
+      const slotRenders: SlotRender[] = [];
+      let cascadeSlotsHidden = 0;
+      for (let i = 0; i < slots.length; i++) {
+        const original = slots[i];
+        const afterMute = original.filter((a) => !mutedSet.has(a));
+        if (afterMute.length === 0) {
+          slotRenders.push({ origIdx: i, alts: original, muted: true });
+          slotUnreachable = true;
+          continue;
+        }
+        let alts = afterMute;
+        if (cascadeSet && cascadeSet.size > 0) {
+          const afterCascade = alts.filter((a) => !cascadeSet.has(a));
+          if (afterCascade.length === 0) {
+            cascadeSlotsHidden++;
+            continue;
+          }
+          alts = afterCascade;
+        }
+        slotRenders.push({ origIdx: i, alts, muted: false });
+      }
 
-      // Precompute the rendered height of each slot, accounting for collapses
-      // caused by picks. Picked slots get extra height so the "+N hidden"
-      // badge can sit below the picked card without colliding.
-      const renderedAlts: string[][] = filteredSlots.map(({ alts }, slotIdx) => {
+      // Precompute slot heights. Picked slots get extra height for the
+      // "+N hidden" badge.
+      const renderedAlts: string[][] = slotRenders.map(({ alts, origIdx }) => {
         if (alts.length === 1) return alts;
-        const picked = picksForFocus[slotIdx];
+        const picked = picksForFocus[origIdx];
         if (picked && alts.includes(picked)) return [picked];
         return alts;
       });
-      const slotHeights = renderedAlts.map((alts, slotIdx) => {
-        const base = alts.length * ROW_H;
-        const isCollapsedPick =
-          filteredSlots[slotIdx].alts.length > 1 && alts.length === 1;
+      const slotHeights = renderedAlts.map((rAlts, idx) => {
+        const base = rAlts.length * ROW_H;
+        const isCollapsedPick = slotRenders[idx].alts.length > 1 && rAlts.length === 1;
         return isCollapsedPick ? base + 36 : base;
       });
       const totalHeight =
         slotHeights.reduce((a, b) => a + b, 0) +
-        SLOT_GAP * Math.max(0, slots.length - 1);
+        SLOT_GAP * Math.max(0, slotRenders.length - 1);
       let yCursor = -totalHeight / 2;
       const seenCourseNode = new Set<string>();
 
       const spilloverSeen = new Set<string>();
 
-      filteredSlots.forEach(({ alts, muted: slotMuted }, slotIdx) => {
-        const slotH = slotHeights[slotIdx];
+      slotRenders.forEach(({ alts, muted: slotMuted, origIdx }, renderIdx) => {
+        const slotIdx = origIdx;
+        const slotH = slotHeights[renderIdx];
         const slotTop = yCursor;
         const slotCenter = slotTop + slotH / 2 - ROW_H / 2;
         const picked = picksForFocus[slotIdx];
@@ -830,6 +861,7 @@ function GraphInner({
       prereqGroups.forEach((group, gi) => {
         group.forEach((c) => {
           if (mutedSet.has(c)) return;
+          if (cascadeSet?.has(c)) return;
           if (!groupOfPrereq[c]) {
             groupOfPrereq[c] = [];
             flatPrereqs.push(c);
@@ -931,6 +963,7 @@ function GraphInner({
     profile.picks,
     mutedSet,
     myDeptSet,
+    cascadeSet,
     setPick,
     clearPick,
     expandDepth,

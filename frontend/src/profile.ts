@@ -2,11 +2,17 @@ export type Profile = {
   picks: Record<string, Record<number, string>>;
   muted: string[];
   myDepartments: string[];
+  hideCascading: boolean;
 };
 
 const STORAGE_KEY = "prereq-profile-v1";
 
-const EMPTY_PROFILE: Profile = { picks: {}, muted: [], myDepartments: [] };
+const EMPTY_PROFILE: Profile = {
+  picks: {},
+  muted: [],
+  myDepartments: [],
+  hideCascading: false,
+};
 
 export function loadProfile(): Profile {
   if (typeof localStorage === "undefined") return EMPTY_PROFILE;
@@ -24,6 +30,7 @@ export function loadProfile(): Profile {
       myDepartments: Array.isArray(parsed.myDepartments)
         ? parsed.myDepartments
         : [],
+      hideCascading: typeof parsed.hideCascading === "boolean" ? parsed.hideCascading : false,
     };
   } catch {
     return EMPTY_PROFILE;

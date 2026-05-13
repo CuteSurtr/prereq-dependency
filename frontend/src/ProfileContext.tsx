@@ -18,6 +18,7 @@ type ProfileCtx = {
   unmuteCourse: (code: string) => void;
   clearAllMutes: () => void;
   setMyDepartments: (depts: string[]) => void;
+  setHideCascading: (hide: boolean) => void;
 };
 
 const Ctx = createContext<ProfileCtx | null>(null);
@@ -102,6 +103,10 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
     setProfile((p) => (p.muted.length === 0 ? p : { ...p, muted: [] }));
   }, []);
 
+  const setHideCascading = useCallback((hide: boolean) => {
+    setProfile((p) => (p.hideCascading === hide ? p : { ...p, hideCascading: hide }));
+  }, []);
+
   const setMyDepartments = useCallback((depts: string[]) => {
     setProfile((p) => {
       const next = Array.from(new Set(depts.map((d) => d.toUpperCase()).filter(Boolean)));
@@ -127,6 +132,7 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
       unmuteCourse,
       clearAllMutes,
       setMyDepartments,
+      setHideCascading,
     }),
     [
       profile,
@@ -137,6 +143,7 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
       unmuteCourse,
       clearAllMutes,
       setMyDepartments,
+      setHideCascading,
     ],
   );
 

@@ -174,6 +174,7 @@ export default function App() {
     unmuteCourse,
     clearAllMutes,
     setMyDepartments,
+    setHideCascading,
   } = useProfile();
   // Seed the departments input synchronously from the persisted profile so
   // the input never flickers empty on first paint.
@@ -379,6 +380,32 @@ export default function App() {
               </option>
             ))}
           </select>
+        </div>
+
+        <div style={{ ...styles.field, marginBottom: 14 }}>
+          <label
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              fontSize: 12,
+              color: "var(--color-label)",
+              cursor: "pointer",
+            }}
+          >
+            <input
+              type="checkbox"
+              checked={profile.hideCascading}
+              onChange={(e) => setHideCascading(e.target.checked)}
+              style={{ accentColor: "var(--color-purple)" }}
+            />
+            <span>
+              Hide redundant prereqs{" "}
+              <span style={{ color: "var(--color-body)", fontSize: 11 }}>
+                (cascading)
+              </span>
+            </span>
+          </label>
         </div>
 
         <div style={styles.field}>
