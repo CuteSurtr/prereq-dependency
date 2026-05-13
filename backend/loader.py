@@ -9,7 +9,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 
 from backend.models import Base, Course, Prereq, PrereqType
-from backend.parser import PrereqKind, extract_description_notes, parse
+from backend.parser import PrereqKind, detect_standing, extract_description_notes, parse
 
 RAW_DIR = Path(__file__).parent.parent / "data" / "raw"
 DB_PATH = Path(__file__).parent / "data" / "courses.db"
@@ -43,6 +43,9 @@ def load_into(db_path: Path = DB_PATH) -> dict[str, int]:
         for c in all_courses:
             stats["courses_total"] += 1
             desc_notes = extract_description_notes(c.get("description"))
+            standing = detect_standing(
+                c["code"], c.get("raw_prereq_text"), c.get("description")
+            )
             session.add(
                 Course(
                     code=c["code"],
@@ -52,10 +55,13 @@ def load_into(db_path: Path = DB_PATH) -> dict[str, int]:
                     description=c.get("description"),
                     raw_prereq_text=c.get("raw_prereq_text"),
                     notes="; ".join(desc_notes) if desc_notes else None,
+                    required_standing=standing.value if standing else None,
                 )
             )
             if desc_notes:
                 stats["desc_notes_extracted"] += 1
+            if standing:
+                stats[f"standing_{standing.value}"] += 1
         session.commit()
 
         for c in all_courses:

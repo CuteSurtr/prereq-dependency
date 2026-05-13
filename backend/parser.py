@@ -21,6 +21,52 @@ class ParseResult:
     raw: str = ""
 
 
+class Standing(StrEnum):
+    """Minimum class standing a course requires."""
+
+    JUNIOR = "junior"   # upper-division standing or "junior" / "junior or senior" standing
+    SENIOR = "senior"   # explicit "senior standing"
+    GRADUATE = "graduate"
+
+
+_STANDING_PATTERNS: tuple[tuple[re.Pattern[str], Standing], ...] = (
+    # Order matters: graduate first (most restrictive), then senior, then junior.
+    # The text "graduate standing" sometimes co-occurs with "junior or senior
+    # standing" in cross-listed courses; graduate wins.
+    (re.compile(r"\bgraduate standing\b", re.I), Standing.GRADUATE),
+    (re.compile(r"\brestricted to graduate (students|standing)\b", re.I), Standing.GRADUATE),
+    (re.compile(r"(?<!junior or )\bsenior standing\b", re.I), Standing.SENIOR),
+    (re.compile(r"\bjunior or senior standing\b", re.I), Standing.JUNIOR),
+    (re.compile(r"\bjunior standing\b", re.I), Standing.JUNIOR),
+    (re.compile(r"\bupper.?division standing\b", re.I), Standing.JUNIOR),
+)
+
+_COURSE_NUM_RE = re.compile(r"\d+")
+
+
+def detect_standing(
+    code: str,
+    raw_prereq_text: str | None,
+    description: str | None,
+) -> Standing | None:
+    """Determine the minimum class standing a course requires.
+
+    Order of precedence:
+      1. Explicit prose markers in prereq text or description.
+      2. Course-number convention: 200+ implies graduate standing.
+    Returns None for courses with no detectable restriction (typical lower-
+    division undergrad).
+    """
+    text = " ".join(filter(None, [raw_prereq_text or "", description or ""]))
+    for pat, level in _STANDING_PATTERNS:
+        if pat.search(text):
+            return level
+    m = _COURSE_NUM_RE.search(code)
+    if m and int(m.group()) >= 200:
+        return Standing.GRADUATE
+    return None
+
+
 @dataclass
 class Atom:
     code: str

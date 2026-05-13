@@ -2,6 +2,7 @@ import type DagreType from "dagre";
 import { useEffect, useMemo, useState } from "react";
 import { computeRedundantDirects } from "./cascade";
 import { FOUNDATION_CODES } from "./foundations";
+import { meetsStanding } from "./profile";
 import ReactFlow, {
   Background,
   BackgroundVariant,
@@ -29,6 +30,8 @@ type CourseNodeData = {
   pickable?: boolean;
   outOfDept?: boolean;
   mutedAlt?: boolean;
+  /** Course's minimum class standing, when present. Drives the corner badge. */
+  requiredStanding?: "junior" | "senior" | "graduate" | null;
   onClick: (code: string) => void;
   onPickInstead?: () => void;
 };
@@ -155,6 +158,40 @@ function CourseNode({ data }: NodeProps<CourseNodeData>) {
       }}
     >
       <Handle type="target" position={Position.Left} style={{ visibility: "hidden" }} />
+      {data.requiredStanding && !isFocus && (
+        <div
+          style={{
+            position: "absolute",
+            top: -7,
+            left: 8,
+            padding: "1px 6px",
+            background: "#ffffff",
+            border: `1px solid ${COLORS.border}`,
+            borderRadius: 999,
+            fontSize: 9,
+            fontWeight: 500,
+            color: COLORS.body,
+            letterSpacing: "0.04em",
+            textTransform: "uppercase",
+            fontFamily:
+              "'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif",
+            lineHeight: 1.4,
+          }}
+          title={
+            data.requiredStanding === "graduate"
+              ? "Graduate standing required"
+              : data.requiredStanding === "senior"
+                ? "Senior standing required"
+                : "Junior+ standing required"
+          }
+        >
+          {data.requiredStanding === "graduate"
+            ? "Grad"
+            : data.requiredStanding === "senior"
+              ? "Sr+"
+              : "Jr+"}
+        </div>
+      )}
       {isCompleted && (
         <div
           style={{
@@ -494,6 +531,21 @@ function GraphInner({
     return hidden;
   }, [graph, myDeptSet, profile.hideOutOfDept]);
 
+  // Standing hide: when the user has set their standing and toggled the
+  // filter, courses that require higher standing are stripped from view.
+  const standingHiddenSet = useMemo(() => {
+    if (!profile.hideAboveStanding || !profile.myStanding) {
+      return new Set<string>();
+    }
+    const hidden = new Set<string>();
+    for (const [code, c] of Object.entries(graph.courses)) {
+      if (!meetsStanding(profile.myStanding, c.required_standing)) {
+        hidden.add(code);
+      }
+    }
+    return hidden;
+  }, [graph, profile.myStanding, profile.hideAboveStanding]);
+
   const {
     nodes,
     edges,
@@ -545,13 +597,17 @@ function GraphInner({
 
     // ── Chain view (depth > 1) ──
     if (expandDepth > 1) {
-      // For the chain BFS, combine user mutes with the strict-dept hidden set
-      // so out-of-dept (non-foundation) courses don't appear anywhere in the
-      // upstream chain when the toggle is on.
+      // For the chain BFS, combine user mutes with the strict-dept and
+      // standing hidden sets so filtered courses don't appear anywhere in
+      // the upstream chain when their respective toggles are on.
       const chainHidden =
-        deptHiddenSet.size === 0
+        deptHiddenSet.size === 0 && standingHiddenSet.size === 0
           ? mutedSet
-          : new Set<string>([...mutedSet, ...deptHiddenSet]);
+          : new Set<string>([
+              ...mutedSet,
+              ...deptHiddenSet,
+              ...standingHiddenSet,
+            ]);
       const { courseCodes, edges: chainEdges, truncated } = buildUpstreamChain(
         graph,
         focusCode,
@@ -592,6 +648,7 @@ function GraphInner({
             eligible: variant !== "focus" && isEligible(code),
             completed: completed.has(code),
             outOfDept,
+            requiredStanding: c?.required_standing ?? null,
             onClick: onSelectCourse,
           },
         });
@@ -655,6 +712,7 @@ function GraphInner({
           eligible: variant !== "focus" && isEligible(code),
           completed: completed.has(code),
           outOfDept: isOutOfDept(code),
+          requiredStanding: c?.required_standing ?? null,
           onClick: onSelectCourse,
           ...extra,
         },
@@ -762,6 +820,14 @@ function GraphInner({
             continue;
           }
           alts = afterDept;
+        }
+        if (standingHiddenSet.size > 0) {
+          const afterStanding = alts.filter((a) => !standingHiddenSet.has(a));
+          if (afterStanding.length === 0) {
+            // All remaining alts require higher standing than the user; drop.
+            continue;
+          }
+          alts = afterStanding;
         }
         slotRenders.push({ origIdx: i, alts, muted: false });
       }
@@ -895,6 +961,7 @@ function GraphInner({
           if (mutedSet.has(c)) return;
           if (cascadeSet?.has(c)) return;
           if (deptHiddenSet.has(c)) return;
+          if (standingHiddenSet.has(c)) return;
           if (!groupOfPrereq[c]) {
             groupOfPrereq[c] = [];
             flatPrereqs.push(c);
@@ -954,7 +1021,10 @@ function GraphInner({
     nodes.push(mkCourseNode(focusCode, COL_X.focus, 0, "focus"));
 
     const visibleUnlocks = unlocks.filter(
-      (code) => !mutedSet.has(code) && !deptHiddenSet.has(code),
+      (code) =>
+        !mutedSet.has(code) &&
+        !deptHiddenSet.has(code) &&
+        !standingHiddenSet.has(code),
     );
     visibleUnlocks.forEach((code, i) => {
       const y = i * ROW_H - ((visibleUnlocks.length - 1) * ROW_H) / 2;
@@ -1000,6 +1070,7 @@ function GraphInner({
     myDeptSet,
     cascadeSet,
     deptHiddenSet,
+    standingHiddenSet,
     setPick,
     clearPick,
     expandDepth,

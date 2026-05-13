@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Graph } from "./Graph";
 import { loadGraph } from "./data";
 import { useProfile } from "./ProfileContext";
-import { totalPicks } from "./profile";
+import { totalPicks, type Standing } from "./profile";
 import type { GraphData } from "./types";
 
 const COURSE_CODE_RE = /\b[A-Z]{2,5}\s+\d+[A-Z]{0,3}\b/g;
@@ -159,6 +159,15 @@ const DEPTH_OPTIONS: { value: number; label: string }[] = [
   { value: 99, label: "Full upstream chain" },
 ];
 
+const STANDING_OPTIONS: { value: Standing | ""; label: string }[] = [
+  { value: "", label: "—" },
+  { value: "frosh", label: "Freshman" },
+  { value: "soph", label: "Sophomore" },
+  { value: "junior", label: "Junior" },
+  { value: "senior", label: "Senior" },
+  { value: "graduate", label: "Graduate" },
+];
+
 export default function App() {
   const [graph, setGraph] = useState<GraphData | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -176,6 +185,8 @@ export default function App() {
     setMyDepartments,
     setHideCascading,
     setHideOutOfDept,
+    setMyStanding,
+    setHideAboveStanding,
   } = useProfile();
   // Seed the departments input synchronously from the persisted profile so
   // the input never flickers empty on first paint.
@@ -383,7 +394,57 @@ export default function App() {
           </select>
         </div>
 
+        <div style={styles.field}>
+          <label style={labelStyle} htmlFor="standing-select">
+            My class standing
+          </label>
+          <select
+            id="standing-select"
+            value={profile.myStanding ?? ""}
+            onChange={(e) =>
+              setMyStanding((e.target.value || null) as Standing | null)
+            }
+            style={{ fontSize: 12 }}
+          >
+            {STANDING_OPTIONS.map((opt) => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
+            ))}
+          </select>
+        </div>
+
         <div style={{ ...styles.field, marginBottom: 14, gap: 6 }}>
+          <label
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              fontSize: 12,
+              color:
+                profile.myStanding === null
+                  ? "var(--color-body-muted, var(--color-body))"
+                  : "var(--color-label)",
+              cursor: profile.myStanding === null ? "not-allowed" : "pointer",
+              opacity: profile.myStanding === null ? 0.55 : 1,
+            }}
+            title={
+              profile.myStanding === null
+                ? "Set My class standing first"
+                : "Courses needing higher standing disappear from the graph."
+            }
+          >
+            <input
+              type="checkbox"
+              checked={profile.hideAboveStanding}
+              disabled={profile.myStanding === null}
+              onChange={(e) => setHideAboveStanding(e.target.checked)}
+              style={{ accentColor: "var(--color-purple)" }}
+            />
+            <span>
+              Hide courses above my standing
+            </span>
+          </label>
           <label
             style={{
               display: "flex",

@@ -7,7 +7,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { loadProfile, saveProfile, type Profile } from "./profile";
+import { loadProfile, saveProfile, type Profile, type Standing } from "./profile";
 
 type ProfileCtx = {
   profile: Profile;
@@ -20,6 +20,8 @@ type ProfileCtx = {
   setMyDepartments: (depts: string[]) => void;
   setHideCascading: (hide: boolean) => void;
   setHideOutOfDept: (hide: boolean) => void;
+  setMyStanding: (standing: Standing | null) => void;
+  setHideAboveStanding: (hide: boolean) => void;
 };
 
 const Ctx = createContext<ProfileCtx | null>(null);
@@ -112,6 +114,16 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
     setProfile((p) => (p.hideOutOfDept === hide ? p : { ...p, hideOutOfDept: hide }));
   }, []);
 
+  const setMyStanding = useCallback((standing: Standing | null) => {
+    setProfile((p) => (p.myStanding === standing ? p : { ...p, myStanding: standing }));
+  }, []);
+
+  const setHideAboveStanding = useCallback((hide: boolean) => {
+    setProfile((p) =>
+      p.hideAboveStanding === hide ? p : { ...p, hideAboveStanding: hide },
+    );
+  }, []);
+
   const setMyDepartments = useCallback((depts: string[]) => {
     setProfile((p) => {
       const next = Array.from(new Set(depts.map((d) => d.toUpperCase()).filter(Boolean)));
@@ -139,6 +151,8 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
       setMyDepartments,
       setHideCascading,
       setHideOutOfDept,
+      setMyStanding,
+      setHideAboveStanding,
     }),
     [
       profile,
@@ -151,6 +165,8 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
       setMyDepartments,
       setHideCascading,
       setHideOutOfDept,
+      setMyStanding,
+      setHideAboveStanding,
     ],
   );
 

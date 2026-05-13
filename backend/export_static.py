@@ -57,6 +57,7 @@ def export(db_path: Path = DB_PATH, out_path: Path = OUT_PATH) -> dict[str, int]
                 "prereq_slots": prereq_slots,
                 "coreq_groups": coreq_groups,
                 "recommended_groups": recommended_groups,
+                "required_standing": c.required_standing,
             }
 
         for e in edges:
