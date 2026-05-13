@@ -392,8 +392,10 @@ export default function App() {
             id="dept-input"
             data-testid="dept-input"
             value={deptsRaw}
-            onChange={(e) => setDeptsRaw(e.target.value)}
-            onBlur={(e) => commitDepartments(e.target.value)}
+            onChange={(e) => {
+              setDeptsRaw(e.target.value);
+              commitDepartments(e.target.value);
+            }}
             placeholder='e.g. "CSE, MATH" — empty means all'
             style={{ fontFamily: "var(--font-mono)", fontSize: 12 }}
           />
