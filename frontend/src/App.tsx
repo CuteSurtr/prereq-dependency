@@ -215,11 +215,12 @@ export default function App() {
 
   const commitMajorCodes = useCallback(
     (text: string) => {
-      const parsed = text
-        .toUpperCase()
-        .split(/[,\s]+/)
-        .map((s) => s.trim().replace(/\s+/g, ""))
-        .filter((s) => /^[A-Z]{2}\d{2}$/.test(s));
+      // Tolerant of common typing patterns: "cs27", "CS 27", "CS27, BE25",
+      // "cs 27 / be25". Pull every 2-letter + (optional space) + 2-digit run
+      // out of the string and normalize.
+      const parsed = (text.toUpperCase().match(/[A-Z]{2}\s*\d{2}/g) ?? []).map(
+        (s) => s.replace(/\s+/g, ""),
+      );
       setMyMajorCodes(parsed);
     },
     [setMyMajorCodes],
@@ -446,12 +447,23 @@ export default function App() {
             placeholder='e.g. "CS27" or "BE25, BE27"'
             style={{ fontFamily: "var(--font-mono)", fontSize: 12 }}
           />
-          {profile.myMajorCodes.length > 0 && (
+          {profile.myMajorCodes.length > 0 ? (
             <span style={{ ...styles.recognizedCount, marginTop: 4 }}>
               {profile.myMajorCodes.length} code
               {profile.myMajorCodes.length === 1 ? "" : "s"} saved
             </span>
-          )}
+          ) : majorsRaw.trim().length > 0 ? (
+            <span
+              style={{
+                ...styles.recognizedCount,
+                marginTop: 4,
+                color: "var(--color-ruby)",
+              }}
+            >
+              No major codes recognized. Format: two letters + two digits,
+              e.g. CS27, BE25, MA33.
+            </span>
+          ) : null}
         </div>
 
         <div style={{ ...styles.field, marginBottom: 14, gap: 6 }}>
