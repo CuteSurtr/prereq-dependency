@@ -990,6 +990,9 @@ function GraphInner({
         } else {
           const perRow = useOrLabels ? orRowH : ROW_H;
           const compact = useOrLabels && !slotMuted;
+          const CARD_HALF_HEIGHT = 30;
+          const joinAnchorY =
+            slotTop + CARD_HALF_HEIGHT + ((alts.length - 1) * perRow) / 2;
           alts.forEach((code, j) => {
             const y = slotTop + j * perRow;
             if (!seenCourseNode.has(code)) {
@@ -1040,7 +1043,7 @@ function GraphInner({
             mkJoinNode(
               `slot:${slotIdx}`,
               COL_X.join,
-              slotCenter,
+              joinAnchorY - (compact ? 0 : 9),
               joinLabel,
               compact,
             ),
