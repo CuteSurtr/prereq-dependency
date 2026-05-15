@@ -24,6 +24,7 @@ type ProfileCtx = {
   setHideAboveStanding: (hide: boolean) => void;
   setMyMajorCodes: (codes: string[]) => void;
   setHideMajorRestricted: (hide: boolean) => void;
+  setOrLabels: (on: boolean) => void;
 };
 
 const Ctx = createContext<ProfileCtx | null>(null);
@@ -149,6 +150,10 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
     );
   }, []);
 
+  const setOrLabels = useCallback((on: boolean) => {
+    setProfile((p) => (p.orLabels === on ? p : { ...p, orLabels: on }));
+  }, []);
+
   const setMyDepartments = useCallback((depts: string[]) => {
     setProfile((p) => {
       const next = Array.from(new Set(depts.map((d) => d.toUpperCase()).filter(Boolean)));
@@ -180,6 +185,7 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
       setHideAboveStanding,
       setMyMajorCodes,
       setHideMajorRestricted,
+      setOrLabels,
     }),
     [
       profile,
@@ -196,6 +202,7 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
       setHideAboveStanding,
       setMyMajorCodes,
       setHideMajorRestricted,
+      setOrLabels,
     ],
   );
 

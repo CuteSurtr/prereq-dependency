@@ -10,6 +10,10 @@ export type Profile = {
   hideAboveStanding: boolean;
   myMajorCodes: string[];
   hideMajorRestricted: boolean;
+  // Visual: place a small OR badge between adjacent alternatives in a
+  // multi-alt slot, instead of relying only on the dashed fan-in lines
+  // and the "1 of N" join pill. Easier to read at a glance.
+  orLabels: boolean;
 };
 
 const STORAGE_KEY = "prereq-profile-v1";
@@ -24,6 +28,7 @@ const EMPTY_PROFILE: Profile = {
   hideAboveStanding: false,
   myMajorCodes: [],
   hideMajorRestricted: false,
+  orLabels: false,
 };
 
 const VALID_STANDINGS: ReadonlySet<string> = new Set([
@@ -66,6 +71,7 @@ export function loadProfile(): Profile {
         typeof parsed.hideMajorRestricted === "boolean"
           ? parsed.hideMajorRestricted
           : false,
+      orLabels: typeof parsed.orLabels === "boolean" ? parsed.orLabels : false,
     };
   } catch {
     return EMPTY_PROFILE;

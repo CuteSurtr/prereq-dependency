@@ -49,6 +49,8 @@ type HiddenAltsBadgeData = {
   onClick: () => void;
 };
 
+type OrBadgeData = Record<string, never>;
+
 const COLORS = {
   navy: "#061b31",
   label: "#273951",
@@ -362,10 +364,37 @@ function HiddenAltsBadge({ data }: NodeProps<HiddenAltsBadgeData>) {
   );
 }
 
+function OrBadgeNode(_: NodeProps<OrBadgeData>) {
+  return (
+    <div
+      aria-hidden
+      style={{
+        padding: "1px 8px",
+        borderRadius: 999,
+        background: COLORS.bg,
+        border: `1px solid ${COLORS.purpleLight}`,
+        fontSize: 10,
+        fontWeight: 500,
+        color: COLORS.purple,
+        letterSpacing: "0.06em",
+        textTransform: "uppercase",
+        fontFamily:
+          "'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif",
+        lineHeight: 1.4,
+        boxShadow: "rgba(83,58,253,0.10) 0px 2px 6px",
+        whiteSpace: "nowrap",
+      }}
+    >
+      or
+    </div>
+  );
+}
+
 const NODE_TYPES = {
   course: CourseNode,
   slotJoin: SlotJoinNode,
   hiddenAlts: HiddenAltsBadge,
+  orBadge: OrBadgeNode,
 };
 
 const ROW_H = 78;
@@ -1014,6 +1043,23 @@ function GraphInner({
                 opacity: slotMuted ? 0.5 : 1,
               },
             });
+            // Drop an OR badge in the gap between this alt and the next when
+            // the user has the "Compact OR layout" toggle on.
+            if (
+              profile.orLabels &&
+              !slotMuted &&
+              j < alts.length - 1 &&
+              alts[j + 1] !== undefined
+            ) {
+              nodes.push({
+                id: `slot:${slotIdx}:or:${j}`,
+                type: "orBadge",
+                position: { x: COL_X.prereq + 78, y: y + ROW_H - 22 },
+                data: {},
+                selectable: false,
+                draggable: false,
+              });
+            }
           });
           const joinLabel = slotMuted
             ? `${alts.length} hidden`
@@ -1142,6 +1188,7 @@ function GraphInner({
     completed,
     onSelectCourse,
     profile.picks,
+    profile.orLabels,
     mutedSet,
     myDeptSet,
     cascadeSet,

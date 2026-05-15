@@ -190,6 +190,7 @@ export default function App() {
     setHideAboveStanding,
     setMyMajorCodes,
     setHideMajorRestricted,
+    setOrLabels,
   } = useProfile();
   // Seed the departments input synchronously from the persisted profile
   // so the field never flickers empty on first paint.
@@ -741,6 +742,30 @@ export default function App() {
               Hide redundant prereqs{" "}
               <span style={{ color: "var(--color-body)", fontSize: 11 }}>
                 (cascading)
+              </span>
+            </span>
+          </label>
+          <label
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              fontSize: 12,
+              color: "var(--color-label)",
+              cursor: "pointer",
+            }}
+            title="Place an OR badge between adjacent alternatives in a slot. Easier to read than just the dashed fan-in lines."
+          >
+            <input
+              type="checkbox"
+              checked={profile.orLabels}
+              onChange={(e) => setOrLabels(e.target.checked)}
+              style={{ accentColor: "var(--color-purple)" }}
+            />
+            <span>
+              Compact OR layout{" "}
+              <span style={{ color: "var(--color-body)", fontSize: 11 }}>
+                (vertical stack)
               </span>
             </span>
           </label>
