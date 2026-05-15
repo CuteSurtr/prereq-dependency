@@ -356,12 +356,48 @@ def _expand_hyphen_series(text: str) -> str:
     return _HYPHEN_SERIES_RE.sub(expand, text)
 
 
+_ALT_OR_PAIR_RE = re.compile(
+    r"(^|\band\s+)"
+    r"([A-Z]{2,5}\s+\d+[A-Z]{0,3})"
+    r"\s+or\s+"
+    r"([A-Z]{2,5}\s+\d+[A-Z]{0,3})"
+    r"(\s+and\s+|\s*[.;]|\s*$)",
+    re.I,
+)
+_OR_LITERAL_RE = re.compile(r"\bor\b", re.I)
+_AND_LITERAL_RE = re.compile(r"\band\b", re.I)
+
+
+def _wrap_alternating_or_and(text: str) -> str:
+    """Catalog prose like 'X or Y and Z and A or B and C' (multiple OR-pairs
+    interleaved with ANDs) is conventionally read as
+    '(X or Y) and Z and (A or B) and C', not the strict-precedence
+    'X or (Y and Z and A) or (B and C)'.
+
+    Wrap each single-course OR-pair that sits between ANDs whenever a clause
+    has at least two ORs and two ANDs. The two-OR threshold preserves the
+    existing 'X and Y or W and Z' test case where there is only one OR and
+    the strict-precedence reading (two alternative AND-pairs) is the right
+    interpretation."""
+    if (
+        len(_OR_LITERAL_RE.findall(text)) < 2
+        or len(_AND_LITERAL_RE.findall(text)) < 2
+    ):
+        return text
+    prev = None
+    while prev != text:
+        prev = text
+        text = _ALT_OR_PAIR_RE.sub(r"\1(\2 or \3)\4", text)
+    return text
+
+
 def _wrap_grouping_hints(text: str) -> str:
     text = _expand_hyphen_series(text)
     text = _EITHER_RE.sub(r"(\1)", text)
     text = _SLASH_RE.sub(r"(\1 or \2)", text)
     text = _wrap_or_and_chain(text)
     text = _wrap_and_or_chain(text)
+    text = _wrap_alternating_or_and(text)
     return text
 
 
