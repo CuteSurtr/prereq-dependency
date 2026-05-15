@@ -991,8 +991,10 @@ function GraphInner({
           const perRow = useOrLabels ? orRowH : ROW_H;
           const compact = useOrLabels && !slotMuted;
           const CARD_HALF_HEIGHT = 30;
+          const APPROX_CARD_RIGHT = COL_X.prereq + 170;
           const joinAnchorY =
             slotTop + CARD_HALF_HEIGHT + ((alts.length - 1) * perRow) / 2;
+          const joinAnchorX = compact ? APPROX_CARD_RIGHT : COL_X.join;
           alts.forEach((code, j) => {
             const y = slotTop + j * perRow;
             if (!seenCourseNode.has(code)) {
@@ -1042,7 +1044,7 @@ function GraphInner({
           nodes.push(
             mkJoinNode(
               `slot:${slotIdx}`,
-              COL_X.join,
+              joinAnchorX,
               joinAnchorY - (compact ? 0 : 9),
               joinLabel,
               compact,
