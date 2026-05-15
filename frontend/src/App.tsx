@@ -192,8 +192,6 @@ export default function App() {
     setHideMajorRestricted,
     setOrLabels,
   } = useProfile();
-  // Seed the departments input synchronously from the persisted profile
-  // so the field never flickers empty on first paint.
   const [deptsRaw, setDeptsRaw] = useState<string>(() =>
     profile.myDepartments.join(", "),
   );
@@ -213,7 +211,6 @@ export default function App() {
     loadMajors().then(setMajors).catch(() => setMajors([]));
   }, []);
 
-  // Close the major picker on outside click.
   useEffect(() => {
     if (!majorPickerOpen) return;
     const onDocMouseDown = (e: MouseEvent) => {
@@ -228,9 +225,6 @@ export default function App() {
     return () => document.removeEventListener("mousedown", onDocMouseDown);
   }, [majorPickerOpen]);
 
-  // Filter the major list by code, name, or department (case-insensitive).
-  // When the input is empty we still show all majors so users can browse.
-  // Already-picked codes are dropped so they don't clutter the menu.
   const pickedMajorSet = useMemo(
     () => new Set(profile.myMajorCodes),
     [profile.myMajorCodes],
@@ -261,8 +255,6 @@ export default function App() {
 
   const addMajorCode = useCallback(
     (raw: string) => {
-      // Tolerant: accept "CS27", "cs 27", or any datalist label whose value
-      // is the code. Take the first XX## run we find.
       const m = raw.toUpperCase().match(/[A-Z]{2}\s*\d{2}/);
       if (!m) return false;
       const code = m[0].replace(/\s+/g, "");
@@ -556,7 +548,6 @@ export default function App() {
               onKeyDown={(e) => {
                 if (e.key === "Enter") {
                   e.preventDefault();
-                  // Prefer the top filtered result; fall back to raw text.
                   if (filteredMajors.length > 0) {
                     addMajorCode(filteredMajors[0].code);
                   } else {

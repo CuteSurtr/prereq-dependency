@@ -10,9 +10,6 @@ export type Profile = {
   hideAboveStanding: boolean;
   myMajorCodes: string[];
   hideMajorRestricted: boolean;
-  // Visual: place a small OR badge between adjacent alternatives in a
-  // multi-alt slot, instead of relying only on the dashed fan-in lines
-  // and the "1 of N" join pill. Easier to read at a glance.
   orLabels: boolean;
 };
 
@@ -92,8 +89,6 @@ const REQUIRED_RANK: Record<"junior" | "senior" | "graduate", number> = {
   graduate: 5,
 };
 
-/** True iff the user with `myStanding` is allowed to take a course requiring
- *  `required`. */
 export function meetsStanding(
   myStanding: Standing | null,
   required: "junior" | "senior" | "graduate" | null,
@@ -108,7 +103,6 @@ export function saveProfile(p: Profile): void {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(p));
   } catch {
-    // quota or private-mode: silently drop persistence
   }
 }
 

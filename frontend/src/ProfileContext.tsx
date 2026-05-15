@@ -70,8 +70,6 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
   const muteCourse = useCallback((code: string) => {
     setProfile((p) => {
       if (p.muted.includes(code)) return p;
-      // Sweep any pick that referenced the now-muted course so it doesn't
-      // silently come back when the user unmutes.
       const newPicks: typeof p.picks = {};
       let picksChanged = false;
       for (const [courseCode, slots] of Object.entries(p.picks)) {

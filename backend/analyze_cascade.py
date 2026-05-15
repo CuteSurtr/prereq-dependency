@@ -18,10 +18,8 @@ from pathlib import Path
 
 GRAPH_PATH = Path(__file__).parent.parent / "frontend" / "public" / "graph.json"
 
-
 def load_graph() -> dict:
     return json.loads(GRAPH_PATH.read_text(encoding="utf-8"))
-
 
 def compute_mandatory_ancestors(graph: dict) -> dict[str, frozenset[str]]:
     """For each course, return the set of courses you are GUARANTEED to take on
@@ -36,7 +34,7 @@ def compute_mandatory_ancestors(graph: dict) -> dict[str, frozenset[str]]:
         if code in memo:
             return memo[code]
         if code in visiting:
-            # Cycle: contribute nothing, let the outer call reconcile.
+
             return frozenset()
         visiting.add(code)
         course = courses.get(code)
@@ -47,8 +45,7 @@ def compute_mandatory_ancestors(graph: dict) -> dict[str, frozenset[str]]:
 
         slots = course.get("prereq_slots")
         if slots is None:
-            # Unfactored: treat each DNF group as an alternative satisfying-set.
-            # Mandatory = intersection over groups of (group ∪ ancestors of group).
+
             groups = course.get("prereq_groups") or []
             if not groups:
                 result: frozenset[str] = frozenset()
@@ -61,9 +58,7 @@ def compute_mandatory_ancestors(graph: dict) -> dict[str, frozenset[str]]:
                     group_sets.append(g_set)
                 result = frozenset(set.intersection(*group_sets)) if group_sets else frozenset()
         else:
-            # Slots are AND-joined. Each slot is an OR over alternatives.
-            # For a slot, mandatory contribution = intersection over alts of
-            # ({alt} ∪ ancestors(alt)).
+
             course_mandatory: set[str] = set()
             for slot in slots:
                 if not slot:
@@ -83,7 +78,6 @@ def compute_mandatory_ancestors(graph: dict) -> dict[str, frozenset[str]]:
 
     return {code: ancestors(code) for code in courses}
 
-
 def find_redundant_directs(graph: dict) -> dict[str, list[tuple[str, list[str]]]]:
     """For each course, return a list of (redundant_prereq, [implying_courses])."""
     courses = graph["courses"]
@@ -97,15 +91,12 @@ def find_redundant_directs(graph: dict) -> dict[str, list[tuple[str, list[str]]]
             for slot in slots:
                 directs |= set(slot)
         else:
-            # Unfactored fallback: use the union of all DNF groups as directs.
+
             for group in course.get("prereq_groups") or []:
                 directs |= set(group)
         if len(directs) < 2:
             continue
 
-        # For each direct prereq P, check whether P is mandatory for some
-        # OTHER direct prereq Q (Q != P). If yes, P is redundant: listing Q
-        # already forces P.
         flagged: list[tuple[str, list[str]]] = []
         for p in sorted(directs):
             implyers: list[str] = []
@@ -121,7 +112,6 @@ def find_redundant_directs(graph: dict) -> dict[str, list[tuple[str, list[str]]]
 
     return out
 
-
 def main() -> None:
     graph = load_graph()
     redundant = find_redundant_directs(graph)
@@ -135,7 +125,6 @@ def main() -> None:
     dist = Counter(len(v) for v in redundant.values())
     print(f"distribution of redundancy count per course: {dict(sorted(dist.items()))}")
 
-    # Show top examples (most redundant prereqs)
     top = sorted(redundant.items(), key=lambda kv: -len(kv[1]))[:15]
     print("\nTop 15 courses with the most redundant directs:")
     for code, flagged in top:
@@ -144,14 +133,12 @@ def main() -> None:
         for p, implyers in flagged:
             print(f"    - {p:<10} already implied by: {', '.join(implyers)}")
 
-    # The motivating example
     print("\nUser's example, CSE 120:")
     if "CSE 120" in redundant:
         for p, implyers in redundant["CSE 120"]:
             print(f"  - {p} implied by: {', '.join(implyers)}")
     else:
         print("  (no redundant directs found: check the slot data)")
-
 
 if __name__ == "__main__":
     main()

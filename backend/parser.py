@@ -4,12 +4,10 @@ import re
 from dataclasses import dataclass, field
 from enum import StrEnum
 
-
 class PrereqKind(StrEnum):
     PREREQ = "PREREQ"
     COREQ = "COREQ"
     RECOMMENDED = "RECOMMENDED"
-
 
 @dataclass
 class ParseResult:
@@ -20,19 +18,15 @@ class ParseResult:
     confident: bool = True
     raw: str = ""
 
-
 class Standing(StrEnum):
     """Minimum class standing a course requires."""
 
-    JUNIOR = "junior"   # upper-division standing or "junior" / "junior or senior" standing
-    SENIOR = "senior"   # explicit "senior standing"
+    JUNIOR = "junior"
+    SENIOR = "senior"
     GRADUATE = "graduate"
 
-
 _STANDING_PATTERNS: tuple[tuple[re.Pattern[str], Standing], ...] = (
-    # Order matters: graduate first (most restrictive), then senior, then junior.
-    # The text "graduate standing" sometimes co-occurs with "junior or senior
-    # standing" in cross-listed courses; graduate wins.
+
     (re.compile(r"\bgraduate standing\b", re.I), Standing.GRADUATE),
     (re.compile(r"\brestricted to graduate (students|standing)\b", re.I), Standing.GRADUATE),
     (re.compile(r"(?<!junior or )\bsenior standing\b", re.I), Standing.SENIOR),
@@ -43,9 +37,6 @@ _STANDING_PATTERNS: tuple[tuple[re.Pattern[str], Standing], ...] = (
 
 _COURSE_NUM_RE = re.compile(r"\d+")
 
-# Major-code restrictions: "Restricted to CS25, CS26, CS27 majors only",
-# "bioengineering majors only (BE25, BE27, BE28, BE29) or consent of department",
-# "MC 25, MC 27, MC 29, and MC 30-37 majors only", etc.
 _MAJOR_CODE_RE = re.compile(r"\b([A-Z]{2})\s?(\d{2})\b")
 _MAJOR_RANGE_RE = re.compile(r"\b([A-Z]{2})\s?(\d{2})\s*[-–—]\s*(\d{2})\b")
 _MAJOR_CONTEXT_PATTERNS: tuple[re.Pattern[str], ...] = (
@@ -60,7 +51,6 @@ _MAJOR_CONTEXT_PATTERNS: tuple[re.Pattern[str], ...] = (
         re.S,
     ),
 )
-
 
 def detect_restricted_majors(
     raw_prereq_text: str | None,
@@ -79,7 +69,7 @@ def detect_restricted_majors(
     for pat in _MAJOR_CONTEXT_PATTERNS:
         for m in pat.finditer(text):
             chunk = m.group(1)
-            # Expand any range like "MC 30-37" into MC30, MC31, ..., MC37.
+
             for rm in _MAJOR_RANGE_RE.finditer(chunk):
                 prefix, lo, hi = rm.group(1), int(rm.group(2)), int(rm.group(3))
                 if 0 <= lo <= hi <= 99 and hi - lo <= 12:
@@ -88,7 +78,6 @@ def detect_restricted_majors(
             for cm in _MAJOR_CODE_RE.finditer(chunk):
                 codes.add(f"{cm.group(1)}{cm.group(2)}")
     return sorted(codes) if codes else None
-
 
 def detect_standing(
     code: str,
@@ -112,24 +101,19 @@ def detect_standing(
         return Standing.GRADUATE
     return None
 
-
 @dataclass
 class Atom:
     code: str
-
 
 @dataclass
 class And:
     children: list[Node]
 
-
 @dataclass
 class Or:
     children: list[Node]
 
-
 Node = Atom | And | Or
-
 
 _COURSE_CODE_RE = re.compile(r"\b([A-Z]{2,5})\s+(\d+[A-Z]{0,3})\b")
 _BARE_NUMBER_RE = re.compile(r"(?<![A-Za-z])(\d+[A-Z]{0,3})\b")
@@ -212,7 +196,6 @@ _DROP_PATTERNS: tuple[re.Pattern[str], ...] = (
     re.compile(r"\bhigher\b", re.I),
 )
 
-
 def _strip_notes(text: str) -> tuple[str, str]:
     notes: list[str] = []
     for pat, label in _NOTE_PATTERNS:
@@ -221,7 +204,6 @@ def _strip_notes(text: str) -> tuple[str, str]:
             text = pat.sub("", text)
     return text, "; ".join(notes)
 
-
 _DESC_STRUCTURAL_PATTERNS: tuple[re.Pattern[str], ...] = (
     re.compile(r"\bRenumbered from[^.]*\.", re.I),
     re.compile(r"\b(?:Formerly|Previously) numbered[^.]*\.", re.I),
@@ -229,17 +211,14 @@ _DESC_STRUCTURAL_PATTERNS: tuple[re.Pattern[str], ...] = (
 )
 _COURSE_CODE_IN_TEXT = re.compile(r"\b[A-Z]{2,5}\s+\d+[A-Z]{0,3}\b")
 
-
 def _split_sentences(text: str) -> list[str]:
     return [s for s in re.split(r"(?<=[.!?])\)?\s+", text) if s.strip()]
-
 
 def _normalize_note(s: str) -> str:
     s = re.sub(r"\s+", " ", s).strip()
     s = s.lstrip("(").rstrip(")").rstrip(".").strip()
     s = re.sub(r"^Note\s*:\s*", "", s, flags=re.I)
     return s
-
 
 def extract_description_notes(description: str | None) -> list[str]:
     if not description:
@@ -267,7 +246,6 @@ def extract_description_notes(description: str | None) -> list[str]:
 
     return found
 
-
 def _strip_drops(text: str) -> str:
     for pat in _DROP_PATTERNS:
         text = pat.sub("", text)
@@ -281,7 +259,6 @@ def _strip_drops(text: str) -> str:
         if text == prev:
             break
     return text
-
 
 def _detect_kind(text: str) -> tuple[PrereqKind, str]:
     s = text.strip()
@@ -299,7 +276,6 @@ def _detect_kind(text: str) -> tuple[PrereqKind, str]:
             flags=re.I,
         )
     return PrereqKind.PREREQ, s
-
 
 _EITHER_RE = re.compile(
     r"\beither\s+("
@@ -336,14 +312,11 @@ _OR_AND_CHAIN_RE = re.compile(
     re.I,
 )
 
-
 def _wrap_and_or_chain(text: str) -> str:
     return _AND_OR_CHAIN_RE.sub(r"\1 and (\2)", text)
 
-
 def _wrap_or_and_chain(text: str) -> str:
     return _OR_AND_CHAIN_RE.sub(r"\1(\2) and ", text)
-
 
 def _expand_hyphen_series(text: str) -> str:
     def expand(m: re.Match[str]) -> str:
@@ -355,7 +328,6 @@ def _expand_hyphen_series(text: str) -> str:
 
     return _HYPHEN_SERIES_RE.sub(expand, text)
 
-
 _ALT_OR_PAIR_RE = re.compile(
     r"(^|\band\s+)"
     r"([A-Z]{2,5}\s+\d+[A-Z]{0,3})"
@@ -366,7 +338,6 @@ _ALT_OR_PAIR_RE = re.compile(
 )
 _OR_LITERAL_RE = re.compile(r"\bor\b", re.I)
 _AND_LITERAL_RE = re.compile(r"\band\b", re.I)
-
 
 def _wrap_alternating_or_and(text: str) -> str:
     """Catalog prose like 'X or Y and Z and A or B and C' (multiple OR-pairs
@@ -390,7 +361,6 @@ def _wrap_alternating_or_and(text: str) -> str:
         text = _ALT_OR_PAIR_RE.sub(r"\1(\2 or \3)\4", text)
     return text
 
-
 def _wrap_grouping_hints(text: str) -> str:
     text = _expand_hyphen_series(text)
     text = _EITHER_RE.sub(r"(\1)", text)
@@ -400,11 +370,9 @@ def _wrap_grouping_hints(text: str) -> str:
     text = _wrap_alternating_or_and(text)
     return text
 
-
 _BARE_NUMBER_TOKENIZER = re.compile(
     r"[A-Z]{2,5}\s+\d+[A-Z]{0,3}|\d+[A-Z]{0,3}|[^A-Z\d]+|."
 )
-
 
 def _normalize_course_codes(text: str) -> str:
     def _norm(m: re.Match[str]) -> str:
@@ -417,7 +385,6 @@ def _normalize_course_codes(text: str) -> str:
         return f"{dept} {number}"
 
     return _COURSE_CODE_RE_LOOSE.sub(_norm, text)
-
 
 def _expand_bare_numbers(text: str) -> str:
     out: list[str] = []
@@ -438,12 +405,10 @@ def _expand_bare_numbers(text: str) -> str:
         out.append(tok)
     return "".join(out)
 
-
 @dataclass
 class _Tok:
     kind: str
     value: str = ""
-
 
 def _tokenize(text: str) -> list[_Tok]:
     toks: list[_Tok] = []
@@ -490,7 +455,6 @@ def _tokenize(text: str) -> list[_Tok]:
             continue
         i += 1
     return toks
-
 
 def _resolve_commas(toks: list[_Tok]) -> list[_Tok]:
     collapsed: list[_Tok] = []
@@ -561,7 +525,6 @@ def _resolve_commas(toks: list[_Tok]) -> list[_Tok]:
             final.append(_Tok(next_conj or "AND"))
     return final
 
-
 class _Parser:
     def __init__(self, toks: list[_Tok]) -> None:
         self.toks = toks
@@ -587,7 +550,7 @@ class _Parser:
         and_children: list[Node] = [left]
         or_children: list[Node] = [left]
         last_top: str | None = None
-        while self._peek() and self._peek().kind in ("TOP_AND", "TOP_OR"):  # type: ignore[union-attr]
+        while self._peek() and self._peek().kind in ("TOP_AND", "TOP_OR"):
             t = self._peek()
             assert t is not None
             self.i += 1
@@ -616,7 +579,7 @@ class _Parser:
     def _or_expr(self) -> Node:
         left = self._and_expr()
         children: list[Node] = [left]
-        while self._peek() and self._peek().kind == "OR":  # type: ignore[union-attr]
+        while self._peek() and self._peek().kind == "OR":
             self._eat("OR")
             children.append(self._and_expr())
         return Or(children) if len(children) > 1 else children[0]
@@ -624,7 +587,7 @@ class _Parser:
     def _and_expr(self) -> Node:
         left = self._term()
         children: list[Node] = [left]
-        while self._peek() and self._peek().kind == "AND":  # type: ignore[union-attr]
+        while self._peek() and self._peek().kind == "AND":
             self._eat("AND")
             children.append(self._term())
         return And(children) if len(children) > 1 else children[0]
@@ -647,14 +610,12 @@ class _Parser:
         self.i += 1
         return Atom("")
 
-
 def _is_empty(node: Node | None) -> bool:
     if node is None:
         return True
     if isinstance(node, Atom):
         return not node.code
     return all(_is_empty(c) for c in node.children)
-
 
 def _to_slots(node: Node | None) -> list[tuple[str, ...]] | None:
     """Factor the AST into flat AND-of-OR slots.
@@ -695,14 +656,13 @@ def _to_slots(node: Node | None) -> list[tuple[str, ...]] | None:
         return slots
     return None
 
-
 def _normalize_slots(slots: list[tuple[str, ...]] | None) -> list[tuple[str, ...]] | None:
     if slots is None:
         return None
     seen: set[frozenset[str]] = set()
     out: list[tuple[str, ...]] = []
     for slot in slots:
-        # dedupe within slot, drop empty, preserve sort for stable output
+
         unique = tuple(sorted(set(c for c in slot if c)))
         if not unique:
             continue
@@ -712,7 +672,6 @@ def _normalize_slots(slots: list[tuple[str, ...]] | None) -> list[tuple[str, ...
         seen.add(key)
         out.append(unique)
     return out
-
 
 def _to_dnf(node: Node | None) -> list[frozenset[str]]:
     if node is None:
@@ -736,7 +695,6 @@ def _to_dnf(node: Node | None) -> list[frozenset[str]]:
         products = new_products
     return [p for p in products if p]
 
-
 def _dedupe_groups(groups: list[frozenset[str]]) -> list[tuple[str, ...]]:
     seen: set[frozenset[str]] = set()
     ordered: list[tuple[str, ...]] = []
@@ -746,7 +704,6 @@ def _dedupe_groups(groups: list[frozenset[str]]) -> list[tuple[str, ...]]:
         seen.add(g)
         ordered.append(tuple(sorted(g)))
     return ordered
-
 
 def parse(text: str) -> ParseResult:
     raw = text or ""

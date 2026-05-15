@@ -30,11 +30,8 @@ type CourseNodeData = {
   pickable?: boolean;
   outOfDept?: boolean;
   mutedAlt?: boolean;
-  /** Course's minimum class standing, when present. Drives the corner badge. */
   requiredStanding?: "junior" | "senior" | "graduate" | null;
-  /** Course's major-code restriction list, if any. Drives the major badge. */
   restrictedToMajors?: string[] | null;
-  /** True when the user has set major codes but none satisfy this course. */
   majorIneligible?: boolean;
   onClick: (code: string) => void;
   onPickInstead?: () => void;
@@ -42,9 +39,6 @@ type CourseNodeData = {
 
 type SlotJoinData = {
   label: string;
-  /** When true the join node renders nothing visible; it stays in the graph
-   *  only as an invisible source point so the single AND edge to the focus
-   *  can originate from the stack's vertical center. */
   invisible?: boolean;
 };
 
@@ -306,8 +300,6 @@ function CourseNode({ data }: NodeProps<CourseNodeData>) {
 
 function SlotJoinNode({ data }: NodeProps<SlotJoinData>) {
   if (data.invisible) {
-    // Invisible anchor: keeps the AND edge's source position fixed at the
-    // stack's vertical center without drawing a pill.
     return (
       <div style={{ width: 1, height: 1 }}>
         <Handle type="target" position={Position.Left} style={{ visibility: "hidden" }} />
@@ -510,8 +502,6 @@ function buildUpstreamChain(
   return { courseCodes: Array.from(courseCodes), edges, truncated };
 }
 
-// dagre is lazy-loaded the first time the user opens the chain view. Keeps
-// ~33KB of layout code out of the depth=1 critical path.
 let dagreModule: typeof DagreType | null = null;
 let dagreLoadPromise: Promise<typeof DagreType> | null = null;
 function loadDagre(): Promise<typeof DagreType> {
@@ -588,9 +578,6 @@ function GraphInner({
   );
   const cascadeSet = redundantDirects?.get(focusCode);
 
-  // Strict dept hide: build a set of out-of-dept courses that should disappear
-  // entirely. STEM foundation courses (MATH 20 series etc.) are exempt so
-  // students still see the actual path through math/physics/chem/bio basics.
   const deptHiddenSet = useMemo(() => {
     if (!profile.hideOutOfDept || myDeptSet.size === 0) {
       return new Set<string>();
@@ -604,8 +591,6 @@ function GraphInner({
     return hidden;
   }, [graph, myDeptSet, profile.hideOutOfDept]);
 
-  // Standing hide: when the user has set their standing and toggled the
-  // filter, courses that require higher standing are stripped from view.
   const standingHiddenSet = useMemo(() => {
     if (!profile.hideAboveStanding || !profile.myStanding) {
       return new Set<string>();
@@ -619,8 +604,6 @@ function GraphInner({
     return hidden;
   }, [graph, profile.myStanding, profile.hideAboveStanding]);
 
-  // Major hide: when the user has set major codes and toggled the filter,
-  // courses restricted to a major list with no overlap disappear.
   const myMajorSet = useMemo(
     () => new Set(profile.myMajorCodes),
     [profile.myMajorCodes],
@@ -639,9 +622,6 @@ function GraphInner({
     }
     return hidden;
   }, [graph, myMajorSet, profile.hideMajorRestricted]);
-  // For badge coloring: a course is "ineligible-by-major" when the user has
-  // set major codes and the course's restriction excludes them (independent
-  // of whether the hide toggle is on).
   const isMajorIneligible = (course: Course | undefined): boolean => {
     if (!course || !course.restricted_to_majors) return false;
     if (myMajorSet.size === 0) return false;
@@ -697,11 +677,7 @@ function GraphInner({
       return c.prereq_groups.some((g) => g.every((p) => completed.has(p)));
     };
 
-    // ── Chain view (depth > 1) ──
     if (expandDepth > 1) {
-      // For the chain BFS, combine user mutes with every active hide set
-      // (dept, standing, major) so filtered courses don't appear anywhere
-      // in the upstream chain when their respective toggles are on.
       const chainHidden =
         deptHiddenSet.size === 0 &&
         standingHiddenSet.size === 0 &&
@@ -722,7 +698,6 @@ function GraphInner({
       );
       const positions = layoutChain(courseCodes, chainEdges);
       if (!positions) {
-        // dagre not loaded yet; render nothing until the lazy import resolves.
         return {
           nodes: [],
           edges: [],
@@ -761,7 +736,6 @@ function GraphInner({
         });
       }
 
-      // Edges: dedupe by source/target/kind; OR-edges are dashed.
       const seenEdge = new Set<string>();
       for (const e of chainEdges) {
         const key = `${e.source}->${e.target}|${e.kind}`;
@@ -858,9 +832,6 @@ function GraphInner({
       draggable: false,
     });
 
-    // When the user enables the "Compact OR layout" toggle, multi-alt slots
-    // need extra vertical space for an OR pill in the gap between rows, and
-    // every prereq edge should be drawn straight instead of bezier-curved.
     const orRowH = ROW_H + 26;
     const useOrLabels = profile.orLabels;
     const slotEdgeType: string | undefined = useOrLabels ? "straight" : undefined;
@@ -898,15 +869,6 @@ function GraphInner({
     let slotSpillover = 0;
 
     if (useSlots) {
-      // Build the list of slots to actually render, preserving each slot's
-      // original index (for pick state) even when intermediate slots are
-      // skipped by cascade filtering.
-      //
-      // Order of filters:
-      //  1. Mute filter: drop user-hidden alts. Empty slot ⇒ unreachable.
-      //  2. Cascade filter: drop alts that are transitively implied by some
-      //     other direct prereq (when "Hide redundant" is on). If every
-      //     remaining alt is redundant, drop the slot entirely.
       type SlotRender = {
         origIdx: number;
         alts: string[];
@@ -934,7 +896,6 @@ function GraphInner({
         if (deptHiddenSet.size > 0) {
           const afterDept = alts.filter((a) => !deptHiddenSet.has(a));
           if (afterDept.length === 0) {
-            // All remaining alts are out-of-dept non-foundation; drop slot.
             continue;
           }
           alts = afterDept;
@@ -942,7 +903,6 @@ function GraphInner({
         if (standingHiddenSet.size > 0) {
           const afterStanding = alts.filter((a) => !standingHiddenSet.has(a));
           if (afterStanding.length === 0) {
-            // All remaining alts require higher standing than the user; drop.
             continue;
           }
           alts = afterStanding;
@@ -950,7 +910,6 @@ function GraphInner({
         if (majorHiddenSet.size > 0) {
           const afterMajor = alts.filter((a) => !majorHiddenSet.has(a));
           if (afterMajor.length === 0) {
-            // All remaining alts are restricted to majors the user isn't in.
             continue;
           }
           alts = afterMajor;
@@ -958,8 +917,6 @@ function GraphInner({
         slotRenders.push({ origIdx: i, alts, muted: false });
       }
 
-      // Precompute slot heights. Picked slots get extra height for the
-      // "+N hidden" badge.
       const renderedAlts: string[][] = slotRenders.map(({ alts, origIdx }) => {
         if (alts.length === 1) return alts;
         const picked = picksForFocus[origIdx];
@@ -988,10 +945,6 @@ function GraphInner({
         const slotCenter = slotTop + slotH / 2 - ROW_H / 2;
         const picked = picksForFocus[slotIdx];
         const isPicked = !slotMuted && alts.length > 1 && picked && alts.includes(picked);
-        // Spillover only counts the alternatives the user is actually planning
-        // to take: a picked slot contributes just the picked code; an
-        // un-picked slot contributes every (un-muted) alternative because
-        // any of them might be chosen.
         const altsForSpillover = isPicked ? [picked as string] : alts;
         for (const code of altsForSpillover) {
           if (
@@ -1013,10 +966,6 @@ function GraphInner({
           }
           edges.push(mkAndEdge(`e-slot${slotIdx}-${code}-focus`, `c:${code}`));
         } else if (isPicked) {
-          // Collapsed picked slot: only the picked alt + a "+N hidden" badge
-          // (positioned below the card) that clears the pick when clicked.
-          // The picked alt navigates on click (normal CourseNode behavior);
-          // the badge is the affordance to undo the pick.
           const code = picked as string;
           const altY = slotCenter;
           if (!seenCourseNode.has(code)) {
@@ -1039,17 +988,6 @@ function GraphInner({
           );
           edges.push(mkAndEdge(`e-slot${slotIdx}-picked-focus`, `c:${code}`));
         } else {
-          // Expanded multi-alt slot: stack alternatives, route through join.
-          // Two render modes:
-          //   * Default: each alt has a dashed line to a visible "1 of N"
-          //     pill, which then has a single AND edge to the focus.
-          //   * Compact OR layout (useOrLabels): the dashed fan-in edges
-          //     and the pill are dropped entirely. The pill stays in the
-          //     graph as an invisible anchor so a single straight AND edge
-          //     can still originate from the stack's vertical center, but
-          //     visually only the stack of alts and the OR badges remain.
-          // When the slot is fully muted, the fan-in stays so the user can
-          // see what they hid.
           const perRow = useOrLabels ? orRowH : ROW_H;
           const compact = useOrLabels && !slotMuted;
           alts.forEach((code, j) => {
@@ -1080,9 +1018,6 @@ function GraphInner({
                 },
               });
             }
-            // Drop an OR badge in the gap between this alt and the next when
-            // the user has the "Compact OR layout" toggle on. The badge sits
-            // in the empty space below the card so it never overlaps the box.
             if (
               compact &&
               j < alts.length - 1 &&
@@ -1115,7 +1050,6 @@ function GraphInner({
         yCursor += slotH + SLOT_GAP;
       });
     } else {
-      // Legacy fan-in for unfactored prereqs (~16% of courses with prereqs).
       const prereqGroups = focus.prereq_groups;
       const flatPrereqs: string[] = [];
       const groupOfPrereq: Record<string, number[]> = {};
@@ -1133,7 +1067,6 @@ function GraphInner({
           groupOfPrereq[c].push(gi);
         });
       });
-      // Unreachable: every group must contain at least one un-muted course.
       const unreachableFanin =
         prereqGroups.length > 0 &&
         prereqGroups.every((g) => g.every((c) => mutedSet.has(c)));
