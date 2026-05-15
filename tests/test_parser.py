@@ -4,6 +4,7 @@ import pytest
 
 from backend.parser import PrereqKind, parse
 
+
 def G(*codes: str) -> tuple[str, ...]:
     return tuple(sorted(codes))
 

@@ -4,6 +4,7 @@ import re
 from dataclasses import dataclass, field
 from enum import StrEnum
 
+
 class PrereqKind(StrEnum):
     PREREQ = "PREREQ"
     COREQ = "COREQ"
@@ -550,7 +551,7 @@ class _Parser:
         and_children: list[Node] = [left]
         or_children: list[Node] = [left]
         last_top: str | None = None
-        while self._peek() and self._peek().kind in ("TOP_AND", "TOP_OR"):
+        while self._peek() and self._peek().kind in ("TOP_AND", "TOP_OR"):  # type: ignore[union-attr]
             t = self._peek()
             assert t is not None
             self.i += 1
@@ -579,7 +580,7 @@ class _Parser:
     def _or_expr(self) -> Node:
         left = self._and_expr()
         children: list[Node] = [left]
-        while self._peek() and self._peek().kind == "OR":
+        while self._peek() and self._peek().kind == "OR":  # type: ignore[union-attr]
             self._eat("OR")
             children.append(self._and_expr())
         return Or(children) if len(children) > 1 else children[0]
@@ -587,7 +588,7 @@ class _Parser:
     def _and_expr(self) -> Node:
         left = self._term()
         children: list[Node] = [left]
-        while self._peek() and self._peek().kind == "AND":
+        while self._peek() and self._peek().kind == "AND":  # type: ignore[union-attr]
             self._eat("AND")
             children.append(self._term())
         return And(children) if len(children) > 1 else children[0]
