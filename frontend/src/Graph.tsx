@@ -843,10 +843,18 @@ function GraphInner({
       draggable: false,
     });
 
+    // When the user enables the "Compact OR layout" toggle, multi-alt slots
+    // need extra vertical space for an OR pill in the gap between rows, and
+    // every prereq edge should be drawn straight instead of bezier-curved.
+    const orRowH = ROW_H + 26;
+    const useOrLabels = profile.orLabels;
+    const slotEdgeType: string | undefined = useOrLabels ? "straight" : undefined;
+
     const mkAndEdge = (id: string, source: string): Edge => ({
       id,
       source,
       target: `c:${focusCode}`,
+      type: slotEdgeType,
       label: "AND",
       labelStyle: {
         fontSize: 10,
@@ -944,7 +952,9 @@ function GraphInner({
         return alts;
       });
       const slotHeights = renderedAlts.map((rAlts, idx) => {
-        const base = rAlts.length * ROW_H;
+        const isMultiExpanded = slotRenders[idx].alts.length > 1 && rAlts.length > 1;
+        const perRow = isMultiExpanded && useOrLabels ? orRowH : ROW_H;
+        const base = rAlts.length * perRow;
         const isCollapsedPick = slotRenders[idx].alts.length > 1 && rAlts.length === 1;
         return isCollapsedPick ? base + 36 : base;
       });
@@ -1018,8 +1028,9 @@ function GraphInner({
           // When the slot is fully muted, render the original alts dimmed and
           // strike-through, drop pick handlers, and label the join with the
           // hidden count so the user knows why the focus is unreachable.
+          const perRow = useOrLabels ? orRowH : ROW_H;
           alts.forEach((code, j) => {
-            const y = slotTop + j * ROW_H;
+            const y = slotTop + j * perRow;
             if (!seenCourseNode.has(code)) {
               nodes.push(
                 mkCourseNode(code, COL_X.prereq, y, "prereq", {
@@ -1036,6 +1047,7 @@ function GraphInner({
               id: `e-slot${slotIdx}-${code}-join`,
               source: `c:${code}`,
               target: `slot:${slotIdx}`,
+              type: slotEdgeType,
               style: {
                 stroke: COLORS.purpleLight,
                 strokeWidth: 1.2,
@@ -1044,9 +1056,10 @@ function GraphInner({
               },
             });
             // Drop an OR badge in the gap between this alt and the next when
-            // the user has the "Compact OR layout" toggle on.
+            // the user has the "Compact OR layout" toggle on. The badge sits
+            // in the empty space below the card so it never overlaps the box.
             if (
-              profile.orLabels &&
+              useOrLabels &&
               !slotMuted &&
               j < alts.length - 1 &&
               alts[j + 1] !== undefined
@@ -1054,7 +1067,7 @@ function GraphInner({
               nodes.push({
                 id: `slot:${slotIdx}:or:${j}`,
                 type: "orBadge",
-                position: { x: COL_X.prereq + 78, y: y + ROW_H - 22 },
+                position: { x: COL_X.prereq + 72, y: y + perRow - 30 },
                 data: {},
                 selectable: false,
                 draggable: false,
