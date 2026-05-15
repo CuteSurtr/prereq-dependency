@@ -991,10 +991,9 @@ function GraphInner({
           const perRow = useOrLabels ? orRowH : ROW_H;
           const compact = useOrLabels && !slotMuted;
           const CARD_HALF_HEIGHT = 30;
-          const APPROX_CARD_RIGHT = COL_X.prereq + 170;
           const joinAnchorY =
             slotTop + CARD_HALF_HEIGHT + ((alts.length - 1) * perRow) / 2;
-          const joinAnchorX = compact ? APPROX_CARD_RIGHT : COL_X.join;
+          const midAlt = Math.floor(alts.length / 2);
           alts.forEach((code, j) => {
             const y = slotTop + j * perRow;
             if (!seenCourseNode.has(code)) {
@@ -1009,7 +1008,37 @@ function GraphInner({
               );
               seenCourseNode.add(code);
             }
-            if (!compact) {
+            if (compact) {
+              edges.push({
+                id: `e-slot${slotIdx}-${code}-focus`,
+                source: `c:${code}`,
+                target: `c:${focusCode}`,
+                type: "straight",
+                label: j === midAlt ? "AND" : undefined,
+                labelStyle: {
+                  fontSize: 10,
+                  fill: COLORS.label,
+                  fontFamily:
+                    "'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif",
+                  fontWeight: 500,
+                  letterSpacing: "0.02em",
+                },
+                labelBgStyle: {
+                  fill: "#ffffff",
+                  stroke: COLORS.border,
+                  strokeWidth: 1,
+                },
+                labelBgPadding: [4, 6],
+                labelBgBorderRadius: 4,
+                style: { stroke: COLORS.purple, strokeWidth: 1.5 },
+                markerEnd: {
+                  type: MarkerType.ArrowClosed,
+                  color: COLORS.purple,
+                  width: 16,
+                  height: 16,
+                },
+              });
+            } else {
               edges.push({
                 id: `e-slot${slotIdx}-${code}-join`,
                 source: `c:${code}`,
@@ -1038,19 +1067,21 @@ function GraphInner({
               });
             }
           });
-          const joinLabel = slotMuted
-            ? `${alts.length} hidden`
-            : `1 of ${alts.length}`;
-          nodes.push(
-            mkJoinNode(
-              `slot:${slotIdx}`,
-              joinAnchorX,
-              joinAnchorY - (compact ? 0 : 9),
-              joinLabel,
-              compact,
-            ),
-          );
-          edges.push(mkAndEdge(`e-slot${slotIdx}-join-focus`, `slot:${slotIdx}`));
+          if (!compact) {
+            const joinLabel = slotMuted
+              ? `${alts.length} hidden`
+              : `1 of ${alts.length}`;
+            nodes.push(
+              mkJoinNode(
+                `slot:${slotIdx}`,
+                COL_X.join,
+                joinAnchorY - 9,
+                joinLabel,
+                false,
+              ),
+            );
+            edges.push(mkAndEdge(`e-slot${slotIdx}-join-focus`, `slot:${slotIdx}`));
+          }
         }
         yCursor += slotH + SLOT_GAP;
       });
