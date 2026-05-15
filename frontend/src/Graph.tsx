@@ -42,6 +42,10 @@ type CourseNodeData = {
 
 type SlotJoinData = {
   label: string;
+  /** When true the join node renders nothing visible; it stays in the graph
+   *  only as an invisible source point so the single AND edge to the focus
+   *  can originate from the stack's vertical center. */
+  invisible?: boolean;
 };
 
 type HiddenAltsBadgeData = {
@@ -301,6 +305,16 @@ function CourseNode({ data }: NodeProps<CourseNodeData>) {
 }
 
 function SlotJoinNode({ data }: NodeProps<SlotJoinData>) {
+  if (data.invisible) {
+    // Invisible anchor: keeps the AND edge's source position fixed at the
+    // stack's vertical center without drawing a pill.
+    return (
+      <div style={{ width: 1, height: 1 }}>
+        <Handle type="target" position={Position.Left} style={{ visibility: "hidden" }} />
+        <Handle type="source" position={Position.Right} style={{ visibility: "hidden" }} />
+      </div>
+    );
+  }
   return (
     <div
       style={{
@@ -819,11 +833,12 @@ function GraphInner({
       x: number,
       y: number,
       label: string,
+      invisible = false,
     ): Node<SlotJoinData> => ({
       id,
       type: "slotJoin",
       position: { x, y },
-      data: { label },
+      data: { label, invisible },
       selectable: false,
       draggable: false,
     });
@@ -1025,10 +1040,18 @@ function GraphInner({
           edges.push(mkAndEdge(`e-slot${slotIdx}-picked-focus`, `c:${code}`));
         } else {
           // Expanded multi-alt slot: stack alternatives, route through join.
-          // When the slot is fully muted, render the original alts dimmed and
-          // strike-through, drop pick handlers, and label the join with the
-          // hidden count so the user knows why the focus is unreachable.
+          // Two render modes:
+          //   * Default: each alt has a dashed line to a visible "1 of N"
+          //     pill, which then has a single AND edge to the focus.
+          //   * Compact OR layout (useOrLabels): the dashed fan-in edges
+          //     and the pill are dropped entirely. The pill stays in the
+          //     graph as an invisible anchor so a single straight AND edge
+          //     can still originate from the stack's vertical center, but
+          //     visually only the stack of alts and the OR badges remain.
+          // When the slot is fully muted, the fan-in stays so the user can
+          // see what they hid.
           const perRow = useOrLabels ? orRowH : ROW_H;
+          const compact = useOrLabels && !slotMuted;
           alts.forEach((code, j) => {
             const y = slotTop + j * perRow;
             if (!seenCourseNode.has(code)) {
@@ -1043,24 +1066,25 @@ function GraphInner({
               );
               seenCourseNode.add(code);
             }
-            edges.push({
-              id: `e-slot${slotIdx}-${code}-join`,
-              source: `c:${code}`,
-              target: `slot:${slotIdx}`,
-              type: slotEdgeType,
-              style: {
-                stroke: COLORS.purpleLight,
-                strokeWidth: 1.2,
-                strokeDasharray: "4,4",
-                opacity: slotMuted ? 0.5 : 1,
-              },
-            });
+            if (!compact) {
+              edges.push({
+                id: `e-slot${slotIdx}-${code}-join`,
+                source: `c:${code}`,
+                target: `slot:${slotIdx}`,
+                type: slotEdgeType,
+                style: {
+                  stroke: COLORS.purpleLight,
+                  strokeWidth: 1.2,
+                  strokeDasharray: "4,4",
+                  opacity: slotMuted ? 0.5 : 1,
+                },
+              });
+            }
             // Drop an OR badge in the gap between this alt and the next when
             // the user has the "Compact OR layout" toggle on. The badge sits
             // in the empty space below the card so it never overlaps the box.
             if (
-              useOrLabels &&
-              !slotMuted &&
+              compact &&
               j < alts.length - 1 &&
               alts[j + 1] !== undefined
             ) {
@@ -1078,7 +1102,13 @@ function GraphInner({
             ? `${alts.length} hidden`
             : `1 of ${alts.length}`;
           nodes.push(
-            mkJoinNode(`slot:${slotIdx}`, COL_X.join, slotCenter, joinLabel),
+            mkJoinNode(
+              `slot:${slotIdx}`,
+              COL_X.join,
+              slotCenter,
+              joinLabel,
+              compact,
+            ),
           );
           edges.push(mkAndEdge(`e-slot${slotIdx}-join-focus`, `slot:${slotIdx}`));
         }
