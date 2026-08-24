@@ -12,9 +12,7 @@ import java.util.Map;
 import java.util.TreeMap;
 import java.util.TreeSet;
 
-/** Rebuilds the group structure that {@code backend/export_static.py} writes into graph.json. */
 public final class CourseMapper {
-
     private CourseMapper() {}
 
     public static CourseDto toDto(CourseEntity c, Collection<PrereqEntity> edges) {
@@ -38,10 +36,6 @@ public final class CourseMapper {
         return new CourseSummaryDto(c.getCode(), c.getTitle(), c.getDepartment());
     }
 
-    /**
-     * Groups edges of one type by {@code group_id}, deduplicating and sorting members exactly as the
-     * Python exporter does so both stacks emit identical JSON.
-     */
     public static List<List<String>> groupsOf(Collection<PrereqEntity> edges, PrereqType type) {
         Map<Integer, TreeSet<String>> byGroup = new TreeMap<>();
         for (PrereqEntity e : edges) {

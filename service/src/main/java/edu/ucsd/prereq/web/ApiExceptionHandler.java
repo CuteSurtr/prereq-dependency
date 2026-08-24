@@ -9,10 +9,8 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
-/** Errors use FastAPI's {@code {"detail": "..."}} envelope so clients can treat both alike. */
 @RestControllerAdvice
 public class ApiExceptionHandler {
-
     @ExceptionHandler(CourseNotFoundException.class)
     public ResponseEntity<Map<String, String>> notFound(CourseNotFoundException e) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("detail", e.getMessage()));

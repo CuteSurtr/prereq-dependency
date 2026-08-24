@@ -17,13 +17,11 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-/** Route-compatible with the dev FastAPI app in {@code backend/api.py}. */
 @RestController
 @RequestMapping("/api")
 @Validated
 @Tag(name = "Courses")
 public class CourseController {
-
     private final CourseService courses;
 
     public CourseController(CourseService courses) {

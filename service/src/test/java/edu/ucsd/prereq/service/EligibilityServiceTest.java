@@ -11,7 +11,6 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
 class EligibilityServiceTest extends FixtureTest {
-
     @Autowired EligibilityService eligibility;
 
     @Test
@@ -24,14 +23,12 @@ class EligibilityServiceTest extends FixtureTest {
 
     @Test
     void anySatisfiedGroupIsEnough() {
-        // CSE 20 lists CSE 11 and MATH 20A as separate groups, so either alone unlocks it.
         assertThat(evaluate(List.of("MATH 20A")).eligible()).extracting(CourseSummaryDto::code)
                 .contains("CSE 20");
     }
 
     @Test
     void aPartiallySatisfiedGroupDoesNotUnlock() {
-        // CSE 100 needs CSE 12 *and* one of CSE 20 / MATH 20C.
         assertThat(evaluate(List.of("CSE 11", "CSE 12")).eligible())
                 .extracting(CourseSummaryDto::code)
                 .doesNotContain("CSE 100");

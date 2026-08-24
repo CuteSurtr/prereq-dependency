@@ -1,5 +1,3 @@
-# H2 + an in-process cache, so `mvn test` needs neither MySQL nor Redis running.
-# The real-stack equivalents are exercised by the *IT tests under the `integration` profile.
 spring:
   datasource:
     url: jdbc:h2:mem:prereq;MODE=MySQL;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE

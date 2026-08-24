@@ -8,7 +8,6 @@ import java.util.List;
 import org.junit.jupiter.api.Test;
 
 class CourseMapperTest {
-
     @Test
     void groupsByGroupIdAndSortsMembersLikeThePythonExporter() {
         List<PrereqEntity> edges =

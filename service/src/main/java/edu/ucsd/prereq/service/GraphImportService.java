@@ -21,14 +21,8 @@ import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-/**
- * Seeds MySQL from {@code frontend/public/graph.json}, the export the Python pipeline already
- * produces. That keeps the scraper and parser as the single source of truth: this service never
- * re-parses catalog text, it only reshapes an existing export into relational rows.
- */
 @Service
 public class GraphImportService {
-
     private static final Logger log = LoggerFactory.getLogger(GraphImportService.class);
 
     private final CourseRepository courses;
@@ -42,14 +36,6 @@ public class GraphImportService {
         this.objectMapper = objectMapper;
     }
 
-    /**
-     * Every cache is dropped on the way out: the cached graph, chains and course records all describe
-     * the catalog that was just replaced, and a reseed that left them in place would keep serving the
-     * old one until the TTLs happened to expire.
-     *
-     * @param replaceExisting drop existing rows first; otherwise the import is skipped when the
-     *     courses table already has data
-     */
     @Transactional
     @CacheEvict(
             cacheNames = {
@@ -84,7 +70,7 @@ public class GraphImportService {
             courseRows.add(toEntity(dto));
         }
         courses.saveAll(courseRows);
-        // Prereq rows carry a foreign key to courses, so the parent rows have to land first.
+
         courses.flush();
 
         Set<String> known = graph.courses().keySet();
@@ -101,10 +87,6 @@ public class GraphImportService {
         return new ImportStats(courseRows.size(), edgeRows.size(), false);
     }
 
-    /**
-     * Group position in the exported list becomes {@code group_id}, matching how
-     * {@code backend/loader.py} numbers them.
-     */
     private static void addEdges(
             List<PrereqEntity> out,
             String courseCode,
@@ -137,7 +119,6 @@ public class GraphImportService {
     }
 
     public record ImportStats(int courses, int edges, boolean skipped) {
-
         static ImportStats alreadyPopulated() {
             return new ImportStats(0, 0, true);
         }

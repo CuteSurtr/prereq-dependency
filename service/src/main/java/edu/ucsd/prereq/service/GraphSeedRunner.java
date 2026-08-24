@@ -8,14 +8,8 @@ import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.stereotype.Component;
 
-/**
- * Seeds an empty database on boot so a fresh {@code docker compose up} has a usable API without a
- * separate load step. A failure here logs and moves on: an empty database is a degraded API, not a
- * reason to refuse to start.
- */
 @Component
 public class GraphSeedRunner implements ApplicationRunner {
-
     private static final Logger log = LoggerFactory.getLogger(GraphSeedRunner.class);
 
     private final GraphImportService importer;

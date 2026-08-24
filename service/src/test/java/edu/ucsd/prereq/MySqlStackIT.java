@@ -21,18 +21,9 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.cache.CacheManager;
 import org.springframework.test.context.ActiveProfiles;
 
-/**
- * The production stack end to end: Flyway-managed MySQL plus Redis. Requires both to be running —
- * {@code docker compose up -d} in this directory, or the service containers CI starts.
- *
- * <p>Because the profile sets {@code ddl-auto: validate}, the application context only starts if the
- * hand-written migration in {@code db/migration} and the JPA entities still agree; a column added to
- * one but not the other fails every test here rather than surfacing at runtime.
- */
 @SpringBootTest
 @ActiveProfiles("mysqlit")
 class MySqlStackIT {
-
     private static final Path FIXTURE = Path.of("src/test/resources/fixtures/graph-mini.json");
 
     @Autowired GraphImportService importer;
@@ -60,10 +51,10 @@ class MySqlStackIT {
     void writesAndReadsEveryColumnTypeMysqlUses() {
         var cse100 = courseRepo.findById("CSE 100").orElseThrow();
         assertThat(cse100.getTitle()).isEqualTo("Advanced Data Structures");
-        // TEXT columns
+
         assertThat(cse100.getRawPrereqText()).contains("CSE 12 and (CSE 20 or MATH 20C)");
         assertThat(cse100.getNotes()).isEqualTo("or consent of instructor");
-        // JSON-in-TEXT columns, via the attribute converters
+
         assertThat(cse100.getRestrictedToMajors()).containsExactly("CS25", "CS26");
         assertThat(cse100.getPrereqSlots())
                 .containsExactly(List.of("CSE 12"), List.of("CSE 20", "MATH 20C"));

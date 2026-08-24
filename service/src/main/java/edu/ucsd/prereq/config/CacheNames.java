@@ -1,8 +1,6 @@
 package edu.ucsd.prereq.config;
 
-/** Cache names shared between {@code @Cacheable} annotations and the TTL configuration. */
 public final class CacheNames {
-
     public static final String COURSES = "courses";
     public static final String COURSE = "course";
     public static final String PREREQS = "prereqs";

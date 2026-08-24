@@ -13,14 +13,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.test.context.ActiveProfiles;
 
-/**
- * Requires a Redis on localhost:6379 (see {@code service/docker-compose.yml}). Records survive a
- * round trip through Redis only if the cache serializer keeps enough type information, which is the
- * failure mode this test exists to catch.
- */
 @ActiveProfiles({"test", "redisit"})
 class RedisCacheIT extends FixtureTest {
-
     @Autowired CourseService courses;
     @Autowired GraphService graph;
     @Autowired RedisTemplate<String, Object> redis;

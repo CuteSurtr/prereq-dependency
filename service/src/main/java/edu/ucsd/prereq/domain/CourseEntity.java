@@ -10,11 +10,9 @@ import java.util.Objects;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
-/** A catalog course. Column names match the SQLite schema the Python loader writes. */
 @Entity
 @Table(name = "courses")
 public class CourseEntity {
-
     @Id
     @Column(name = "code", length = 20, nullable = false)
     private String code;
@@ -40,7 +38,6 @@ public class CourseEntity {
     @Column(name = "notes")
     private String notes;
 
-    /** Factored AND-of-OR slots; {@code null} when the parser found nothing to factor. */
     @JdbcTypeCode(SqlTypes.LONGVARCHAR)
     @Column(name = "prereq_slots_json")
     @Convert(converter = JsonListConverter.NestedStringList.class)

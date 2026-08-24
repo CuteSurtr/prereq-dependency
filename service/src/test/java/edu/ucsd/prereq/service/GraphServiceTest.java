@@ -12,7 +12,6 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
 class GraphServiceTest extends FixtureTest {
-
     @Autowired GraphService graph;
 
     @Test
@@ -52,7 +51,6 @@ class GraphServiceTest extends FixtureTest {
 
     @Test
     void deduplicatesEdgesThatAppearInMoreThanOneGroup() {
-        // CSE 12 is a member of both of CSE 100's DNF groups but is one edge in the rendered graph.
         ChainDto chain = graph.upstreamChain("CSE 100", 1);
         assertThat(chain.edges())
                 .filteredOn(e -> e.source().equals("CSE 12") && e.target().equals("CSE 100"))
@@ -97,8 +95,7 @@ class GraphServiceTest extends FixtureTest {
         GraphDto export = graph.export();
         assertThat(export.unlocks().get("CSE 11")).containsExactly("CSE 12", "CSE 20");
         assertThat(export.unlocks().get("CSE 12")).containsExactly("CSE 100");
-        // MATH 20A gates CSE 20 and MATH 20B; it is merely *recommended* for CSE 12, so CSE 12
-        // must not appear here.
+
         assertThat(export.unlocks().get("MATH 20A")).containsExactly("CSE 20", "MATH 20B");
         assertThat(export.unlocks()).doesNotContainKey("CSE 100");
     }

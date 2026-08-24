@@ -17,20 +17,9 @@ import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-/**
- * Server-side counterpart of {@code isEligible} in {@code frontend/src/data.ts}: a course is
- * eligible when every member of at least one of its DNF prerequisite groups has been completed.
- *
- * <p>Only courses that name a completed course as a prerequisite are considered — those are the ones
- * a new completion can unlock. Courses with no prerequisites at all are always takeable and would
- * otherwise swamp the response, so they are deliberately left out.
- *
- * <p>Not cached: the request body is effectively unbounded, so cache keys would never be reused.
- */
 @Service
 @Transactional(readOnly = true)
 public class EligibilityService {
-
     public static final int DEFAULT_LIMIT = 200;
 
     private final CourseRepository courses;

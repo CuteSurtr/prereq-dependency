@@ -9,7 +9,6 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 public interface CourseRepository extends JpaRepository<CourseEntity, String> {
-
     List<CourseEntity> findByCodeInOrderByCode(Collection<String> codes);
 
     @Query(

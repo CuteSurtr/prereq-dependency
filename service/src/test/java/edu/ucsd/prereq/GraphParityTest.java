@@ -17,18 +17,9 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.cache.CacheManager;
 import org.springframework.test.context.ActiveProfiles;
 
-/**
- * Loads the real 2,000-course export, pushes it through the relational model, and reads it back out
- * again. The result has to be indistinguishable from what {@code backend/export_static.py} wrote.
- *
- * <p>This is the guard that keeps the two backends interchangeable: any drift in how Java groups,
- * sorts, deduplicates or names a field shows up here rather than as a frontend that renders
- * differently depending on which backend served it.
- */
 @SpringBootTest
 @ActiveProfiles("test")
 class GraphParityTest {
-
     private static final Path REAL_GRAPH = Path.of("../frontend/public/graph.json");
 
     @Autowired GraphImportService importer;
@@ -53,8 +44,7 @@ class GraphParityTest {
         JsonNode fromPython = mapper.readTree(REAL_GRAPH.toFile());
 
         assertThat(stats.courses()).isEqualTo(fromPython.get("courses").size());
-        // Object field order is not significant to JsonNode equality; array order is, which is what
-        // makes this a real check on the sorting rules in CourseMapper and GraphService.
+
         assertThat(fromJava.get("courses")).isEqualTo(fromPython.get("courses"));
         assertThat(fromJava.get("unlocks")).isEqualTo(fromPython.get("unlocks"));
     }

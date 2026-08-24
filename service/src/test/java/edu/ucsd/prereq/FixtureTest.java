@@ -9,11 +9,9 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.cache.CacheManager;
 import org.springframework.test.context.ActiveProfiles;
 
-/** Reloads the miniature catalog before each test so cases cannot leak state into each other. */
 @SpringBootTest
 @ActiveProfiles("test")
 public abstract class FixtureTest {
-
     protected static final Path FIXTURE = Path.of("src/test/resources/fixtures/graph-mini.json");
 
     @Autowired protected GraphImportService importer;

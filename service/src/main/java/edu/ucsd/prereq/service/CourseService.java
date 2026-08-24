@@ -22,16 +22,9 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-/**
- * Course lookups, mirroring the routes {@code backend/api.py} exposes for local development.
- *
- * <p>All methods expect codes already run through {@link CourseCodes#normalize}; the controller
- * normalizes at the edge so the cache key and the lookup agree.
- */
 @Service
 @Transactional(readOnly = true)
 public class CourseService {
-
     private final CourseRepository courses;
     private final PrereqRepository prereqs;
 
@@ -73,7 +66,6 @@ public class CourseService {
                 course.getCode(), course.getTitle(), course.getRawPrereqText(), course.getNotes(), groups);
     }
 
-    /** Courses that list {@code code} as a hard prerequisite. */
     @Cacheable(cacheNames = CacheNames.UNLOCKS, key = "#code")
     public List<CourseSummaryDto> unlocks(String code) {
         if (!courses.existsById(code)) {

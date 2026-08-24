@@ -25,18 +25,9 @@ import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-/**
- * Whole-graph operations: the recursive upstream chain the frontend otherwise walks client-side, and
- * the full export that {@code backend/export_static.py} produces.
- *
- * <p>Both are expensive enough to be worth a Redis round trip and stable between catalog scrapes,
- * which is what the long TTLs in {@code application.yml} assume.
- */
 @Service
 @Transactional(readOnly = true)
 public class GraphService {
-
-    /** Matches {@code CHAIN_NODE_CAP} in Graph.tsx so both renderers truncate at the same point. */
     public static final int CHAIN_NODE_CAP = 160;
 
     public static final int MAX_DEPTH = 12;
@@ -49,11 +40,6 @@ public class GraphService {
         this.prereqs = prereqs;
     }
 
-    /**
-     * Breadth-first walk up the prerequisite graph, one batched query per level rather than one per
-     * course. Cycles are impossible in a well-formed catalog but the visited set guards against them
-     * anyway.
-     */
     @Cacheable(cacheNames = CacheNames.CHAIN, key = "#code + ':' + #depth")
     public ChainDto upstreamChain(String code, int depth) {
         if (!courses.existsById(code)) {
@@ -110,7 +96,6 @@ public class GraphService {
         return new ChainDto(code, maxDepth, truncated, buildNodes(visited, levels), List.copyOf(edges));
     }
 
-    /** Same payload as {@code frontend/public/graph.json}, straight out of MySQL. */
     @Cacheable(cacheNames = CacheNames.GRAPH)
     public GraphDto export() {
         Map<String, List<PrereqEntity>> edgesByCourse =
@@ -137,10 +122,6 @@ public class GraphService {
         return new GraphDto(out, unlocksOut);
     }
 
-    /**
-     * A prerequisite edge can name a course with no row of its own after a partial import; those get
-     * a stub node so the chain still renders the edge rather than dropping it.
-     */
     private List<ChainNodeDto> buildNodes(Set<String> visited, Map<String, Integer> levels) {
         Map<String, CourseEntity> known =
                 courses.findByCodeInOrderByCode(visited).stream()

@@ -11,10 +11,6 @@ import jakarta.persistence.Index;
 import jakarta.persistence.Table;
 import java.util.Objects;
 
-/**
- * One prerequisite edge. Rows sharing a {@code (courseCode, prereqType, groupId)} form an
- * alternative group: satisfying any single member satisfies the group.
- */
 @Entity
 @Table(
         name = "prereqs",
@@ -23,7 +19,6 @@ import java.util.Objects;
             @Index(name = "ix_prereqs_required_course_code", columnList = "required_course_code")
         })
 public class PrereqEntity {
-
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "id")

@@ -37,8 +37,6 @@ spring:
   cache:
     type: ${CACHE_TYPE:redis}
 
-  # graph.json and the FastAPI responses are snake_case; keep the Java payloads identical
-  # so the frontend can point at either backend without a translation layer.
   jackson:
     property-naming-strategy: SNAKE_CASE
     default-property-inclusion: always
@@ -74,7 +72,6 @@ prereq:
       graph: PT6H
       departments: PT12H
   seed:
-    # Seed MySQL from the static export the frontend already ships.
     graph-json: ${GRAPH_JSON:../frontend/public/graph.json}
     on-startup: ${IMPORT_ON_STARTUP:true}
     force: ${IMPORT_FORCE:false}

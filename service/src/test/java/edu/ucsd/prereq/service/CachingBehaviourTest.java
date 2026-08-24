@@ -10,13 +10,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.transaction.annotation.Transactional;
 
-/**
- * Proves the {@code @Cacheable} annotations are wired up, independently of which cache provider is
- * active: the second read is served without touching the repository, so deleting the row underneath
- * does not change the answer until the cache is cleared.
- */
 class CachingBehaviourTest extends FixtureTest {
-
     @Autowired CourseService courseService;
     @Autowired GraphService graphService;
     @Autowired CourseRepository courses;
@@ -65,7 +59,6 @@ class CachingBehaviourTest extends FixtureTest {
 
         importer.importFrom(FIXTURE, true);
 
-        // Stale entries would otherwise describe the catalog that was just replaced.
         assertThat(cacheManager.getCache(CacheNames.COURSE).get("CSE 100")).isNull();
         assertThat(cacheManager.getCache(CacheNames.CHAIN).get("CSE 100:2")).isNull();
     }

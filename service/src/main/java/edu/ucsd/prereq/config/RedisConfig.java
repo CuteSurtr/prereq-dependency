@@ -25,22 +25,8 @@ import org.springframework.data.redis.serializer.RedisSerializationContext.Seria
 import org.springframework.data.redis.serializer.RedisSerializer;
 import org.springframework.data.redis.serializer.StringRedisSerializer;
 
-/**
- * Cache entries are stored as plain JSON so they can be read with {@code redis-cli} and so a DTO
- * change that only adds a field does not invalidate the whole cache.
- *
- * <p>Each cache declares the exact type its values deserialize back into. The obvious alternative —
- * one generic serializer with Jackson's default typing — does not work here: every DTO is a record,
- * records are {@code final}, and {@code NON_FINAL} typing therefore never writes the {@code @class}
- * tag needed to read them back. Declaring the type also keeps the payloads small, which matters for
- * the {@code graph} cache in particular.
- *
- * <p>Spring Boot only consults the customizer when Redis is the active cache provider, so the test
- * profile ({@code spring.cache.type=simple}) ignores all of this and needs no Redis server.
- */
 @Configuration(proxyBeanMethods = false)
 public class RedisConfig {
-
     private static Map<String, JavaType> cacheValueTypes(TypeFactory types) {
         JavaType summaryList = types.constructCollectionType(List.class, CourseSummaryDto.class);
         return Map.of(
@@ -53,10 +39,6 @@ public class RedisConfig {
                 CacheNames.DEPARTMENTS, types.constructCollectionType(List.class, String.class));
     }
 
-    /**
-     * Catch-all for any cache not listed above. It has to carry type information for every value,
-     * final types included, or records coming back out would be unreadable.
-     */
     @Bean
     public RedisSerializer<Object> fallbackCacheSerializer() {
         ObjectMapper mapper = new ObjectMapper();
@@ -70,7 +52,6 @@ public class RedisConfig {
     @Bean
     public RedisCacheManagerBuilderCustomizer cacheTtlCustomizer(
             PrereqProperties props, ObjectMapper objectMapper, RedisSerializer<Object> fallbackCacheSerializer) {
-
         RedisCacheConfiguration base =
                 RedisCacheConfiguration.defaultCacheConfig()
                         .prefixCacheNameWith(props.cache().keyPrefix() + ":")
@@ -99,7 +80,6 @@ public class RedisConfig {
         return props.cache().ttls().getOrDefault(cacheName, props.cache().defaultTtl());
     }
 
-    /** For the ad-hoc reads and cache sweeps that operating the service occasionally needs. */
     @Bean
     public RedisTemplate<String, Object> redisTemplate(
             RedisConnectionFactory connectionFactory, RedisSerializer<Object> fallbackCacheSerializer) {

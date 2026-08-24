@@ -14,7 +14,6 @@ import org.springframework.test.web.servlet.MockMvc;
 
 @AutoConfigureMockMvc
 class CourseApiTest extends FixtureTest {
-
     @Autowired MockMvc mvc;
 
     @Test
@@ -79,7 +78,7 @@ class CourseApiTest extends FixtureTest {
                 .andExpect(jsonPath("$.code").value("CSE 100"))
                 .andExpect(jsonPath("$.groups.length()").value(2))
                 .andExpect(jsonPath("$.groups[0].group_id").value(0))
-                // Members keep insertion order within a group, as the FastAPI route does.
+
                 .andExpect(jsonPath("$.groups[0].members[0].required").value("CSE 12"))
                 .andExpect(jsonPath("$.groups[0].members[1].required").value("CSE 20"))
                 .andExpect(jsonPath("$.groups[0].members[0].type").value("AND"))

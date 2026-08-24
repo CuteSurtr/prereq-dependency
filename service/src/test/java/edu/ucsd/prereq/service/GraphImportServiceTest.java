@@ -12,14 +12,13 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
 class GraphImportServiceTest extends FixtureTest {
-
     @Autowired CourseRepository courses;
     @Autowired PrereqRepository prereqs;
 
     @Test
     void loadsEveryCourseAndFlattensGroupsIntoEdges() {
         assertThat(courses.count()).isEqualTo(7);
-        // 1 + 1 + 1 + 2 + 4 prereq edges, plus CSE 12's single RECOMMENDED edge.
+
         assertThat(prereqs.count()).isEqualTo(10);
     }
 

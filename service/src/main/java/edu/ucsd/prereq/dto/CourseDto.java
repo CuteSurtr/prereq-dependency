@@ -2,15 +2,6 @@ package edu.ucsd.prereq.dto;
 
 import java.util.List;
 
-/**
- * Field-for-field equivalent of the frontend's {@code Course} type in {@code types.ts} and of one
- * entry in {@code graph.json}.
- *
- * @param prereqGroups disjunctive normal form: satisfying every member of any one group satisfies
- *     the prerequisite
- * @param prereqSlots AND-joined slots of OR-alternatives; null when the parser could not factor the
- *     expression into flat slots
- */
 public record CourseDto(
         String code,
         String title,

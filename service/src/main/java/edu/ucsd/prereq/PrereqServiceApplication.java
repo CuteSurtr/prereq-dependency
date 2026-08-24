@@ -10,7 +10,6 @@ import org.springframework.cache.annotation.EnableCaching;
 @EnableCaching
 @EnableConfigurationProperties(PrereqProperties.class)
 public class PrereqServiceApplication {
-
     public static void main(String[] args) {
         SpringApplication.run(PrereqServiceApplication.class, args);
     }

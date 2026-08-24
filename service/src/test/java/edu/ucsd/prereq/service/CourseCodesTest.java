@@ -7,7 +7,6 @@ import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.api.Test;
 
 class CourseCodesTest {
-
     @ParameterizedTest
     @CsvSource({
         "cse100,      CSE 100",

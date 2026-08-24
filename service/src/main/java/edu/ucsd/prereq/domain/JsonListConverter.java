@@ -8,12 +8,7 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.util.List;
 
-/**
- * The Python loader stores {@code restricted_to_majors} as a JSON array in a text column; these
- * converters keep that on-disk shape byte-compatible while exposing real lists to Java.
- */
 public final class JsonListConverter {
-
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
     private JsonListConverter() {}

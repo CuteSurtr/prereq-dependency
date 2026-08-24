@@ -21,13 +21,11 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-/** Graph-wide work that is too expensive to redo in the browser on every interaction. */
 @RestController
 @RequestMapping("/api")
 @Validated
 @Tag(name = "Graph")
 public class GraphController {
-
     private final GraphService graph;
     private final EligibilityService eligibility;
 
