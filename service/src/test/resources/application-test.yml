@@ -1,0 +1,27 @@
+# H2 + an in-process cache, so `mvn test` needs neither MySQL nor Redis running.
+# The real-stack equivalents are exercised by the *IT tests under the `integration` profile.
+spring:
+  datasource:
+    url: jdbc:h2:mem:prereq;MODE=MySQL;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: ""
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.H2Dialect
+  flyway:
+    enabled: false
+  cache:
+    type: simple
+
+management:
+  health:
+    redis:
+      enabled: false
+
+prereq:
+  seed:
+    on-startup: false

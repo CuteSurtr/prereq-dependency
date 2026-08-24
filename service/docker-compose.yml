@@ -1,0 +1,58 @@
+# Local stack for the Spring Boot service.
+#
+#   docker compose up -d mysql redis   # dependencies only; run the app from your IDE or `mvn spring-boot:run`
+#   docker compose up -d               # dependencies plus the packaged service on :8080
+#
+# The frontend's static export is mounted read-only and seeds MySQL on first boot.
+
+services:
+  mysql:
+    image: mysql:8.4
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: prereq
+      MYSQL_USER: prereq
+      MYSQL_PASSWORD: prereq
+    command: ["--character-set-server=utf8mb4", "--collation-server=utf8mb4_unicode_ci"]
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-proot"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  redis:
+    image: redis:7-alpine
+    # Cache only: nothing here is worth persisting, and an unwritable volume should not stop Redis.
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  service:
+    build: .
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      MYSQL_URL: jdbc:mysql://mysql:3306/prereq?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC&characterEncoding=utf8
+      MYSQL_USER: prereq
+      MYSQL_PASSWORD: prereq
+      REDIS_HOST: redis
+      GRAPH_JSON: /app/graph.json
+    ports:
+      - "8080:8080"
+    volumes:
+      - ../frontend/public/graph.json:/app/graph.json:ro
+
+volumes:
+  mysql-data:

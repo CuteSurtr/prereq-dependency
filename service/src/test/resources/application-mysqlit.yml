@@ -1,0 +1,24 @@
+# Full production stack: MySQL owned by Flyway, cache in Redis.
+spring:
+  datasource:
+    url: ${MYSQL_URL:jdbc:mysql://localhost:3306/prereq_it?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC&characterEncoding=utf8}
+    username: ${MYSQL_USER:prereq}
+    password: ${MYSQL_PASSWORD:prereq}
+  jpa:
+    hibernate:
+      # `validate`, not `none`: starting the context is then itself a check that the Flyway
+      # migration and the JPA mappings still describe the same schema.
+      ddl-auto: validate
+  flyway:
+    enabled: true
+    clean-disabled: false
+  cache:
+    type: redis
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+
+prereq:
+  seed:
+    on-startup: false

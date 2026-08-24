@@ -24,7 +24,7 @@ class Course(Base):
     code: Mapped[str] = mapped_column(String(20), primary_key=True)
     title: Mapped[str] = mapped_column(String(255))
     department: Mapped[str] = mapped_column(String(10), index=True)
-    units: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    units: Mapped[str | None] = mapped_column(String(64), nullable=True)
     description: Mapped[str | None] = mapped_column(String, nullable=True)
     raw_prereq_text: Mapped[str | None] = mapped_column(String, nullable=True)
     notes: Mapped[str | None] = mapped_column(String, nullable=True)

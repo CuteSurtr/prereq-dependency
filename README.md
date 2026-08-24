@@ -54,6 +54,9 @@ flowchart LR
     DB -->|export_static.py| JSON[("<b>graph.json</b><br/>shipped to the frontend")]
     JSON --> FE["<b>React + React Flow</b><br/>static, GitHub Pages"]
     DB -.->|local dev| API["<b>FastAPI</b><br/>uvicorn backend.api:app"]
+    JSON -.->|seeds| MySQL[("<b>MySQL</b><br/>Flyway schema")]
+    MySQL -.-> SVC["<b>Spring Boot</b><br/>optional API"]
+    Redis[("<b>Redis</b><br/>read-through cache")] -.-> SVC
     User((User)) --> FE
 ```
 
@@ -62,9 +65,10 @@ flowchart LR
 * **Scraper.** `httpx` + `selectolax`, polite 1 req/sec rate limit, on-disk HTML cache. The `Prerequisites:` marker appears in several different `<strong>`/`<em>` nestings across the live site; the regex tolerates all of them.
 * **Parser.** Hand-rolled, well-tested. Produces DNF groups, factored AND-of-OR slots, class-standing markers, major-code restrictions, and prose-extracted notes. Ambiguous prereq strings are flagged for an LLM fallback (interface stubbed in `backend/llm_fallback.py`).
 * **Backend.** Python 3.11, FastAPI, SQLAlchemy, SQLite. The full DB exports to `frontend/public/graph.json` at build time so the deployed app is pure static (no serverless cold starts, no DB to provision). FastAPI is dev-only.
+* **Service (optional).** Java 21 + Spring Boot 3.5, MySQL 8, Redis 7. An additive API for the work the static build cannot do well: recursive chain traversal, eligibility over an arbitrary completed-course list, and a `graph.json` served from a database instead of a build step. It mirrors the FastAPI routes and reuses the Python export rather than re-implementing the scraper or parser. See [`service/README.md`](service/README.md).
 * **Frontend.** Vite + React + TypeScript + [React Flow](https://reactflow.dev), plus [dagre](https://github.com/dagrejs/dagre) (lazy-loaded only when the chain view opens) for layered DAG layout. A small `ProfileContext` persists picks, mutes, departments, major codes, standing, and every filter toggle in `localStorage`. Stripe-inspired palette (Inter + JetBrains Mono, navy / purple, blue-tinted shadows). Responsive: desktop two-column, mobile slide-down drawer.
 * **Deploy.** GitHub Pages by default; `vercel.json` is also wired up.
-* **CI.** GitHub Actions: `ruff`, `mypy`, `pytest`, `tsc`, Playwright e2e.
+* **CI.** GitHub Actions: `ruff`, `mypy`, `pytest`, `tsc`, Playwright e2e, and `mvn verify` for the service against MySQL + Redis containers.
 
 ## Local development
 
@@ -92,12 +96,25 @@ npm install
 npm run dev   # http://localhost:5173, proxies /api to the backend
 ```
 
+### Service (optional)
+
+Nothing else depends on this; the static site and the Python pipeline work without it.
+
+```bash
+cd service
+docker compose up -d mysql redis          # dependencies only
+IMPORT_FORCE=true mvn spring-boot:run     # seeds MySQL from frontend/public/graph.json
+# http://localhost:8080/swagger-ui.html
+```
+
 ### Tests
 
 ```bash
 pytest                              # backend parser tests
 cd frontend && npx tsc --noEmit     # type check
 cd frontend && npm run test:e2e     # Playwright smoke
+cd service && mvn test              # service tests on H2; needs nothing running
+cd service && mvn verify            # adds the MySQL + Redis integration suites
 ```
 
 ### Audit scripts

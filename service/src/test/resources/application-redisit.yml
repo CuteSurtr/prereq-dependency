@@ -1,0 +1,9 @@
+# Layered on top of the `test` profile: keeps H2 for storage but swaps the in-process cache for a
+# real Redis, so the JSON serializer is exercised against a live server.
+spring:
+  cache:
+    type: redis
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
