@@ -1,0 +1,158 @@
+{
+  "courses": {
+    "MATH 20A": {
+      "code": "MATH 20A",
+      "title": "Calculus for Science and Engineering",
+      "department": "MATH",
+      "units": "4",
+      "description": null,
+      "raw_prereq_text": null,
+      "notes": null,
+      "prereq_groups": [],
+      "prereq_slots": null,
+      "coreq_groups": [],
+      "recommended_groups": [],
+      "required_standing": null,
+      "restricted_to_majors": null
+    },
+    "MATH 20B": {
+      "code": "MATH 20B",
+      "title": "Calculus for Science and Engineering",
+      "department": "MATH",
+      "units": "4",
+      "description": null,
+      "raw_prereq_text": "Prerequisites: MATH 20A.",
+      "notes": null,
+      "prereq_groups": [
+        [
+          "MATH 20A"
+        ]
+      ],
+      "prereq_slots": null,
+      "coreq_groups": [],
+      "recommended_groups": [],
+      "required_standing": null,
+      "restricted_to_majors": null
+    },
+    "MATH 20C": {
+      "code": "MATH 20C",
+      "title": "Calculus and Analytic Geometry",
+      "department": "MATH",
+      "units": "4",
+      "description": null,
+      "raw_prereq_text": "Prerequisites: MATH 20B.",
+      "notes": null,
+      "prereq_groups": [
+        [
+          "MATH 20B"
+        ]
+      ],
+      "prereq_slots": null,
+      "coreq_groups": [],
+      "recommended_groups": [],
+      "required_standing": null,
+      "restricted_to_majors": null
+    },
+    "CSE 11": {
+      "code": "CSE 11",
+      "title": "Accelerated Introduction to Programming",
+      "department": "CSE",
+      "units": "4",
+      "description": null,
+      "raw_prereq_text": null,
+      "notes": null,
+      "prereq_groups": [],
+      "prereq_slots": null,
+      "coreq_groups": [],
+      "recommended_groups": [],
+      "required_standing": null,
+      "restricted_to_majors": null
+    },
+    "CSE 12": {
+      "code": "CSE 12",
+      "title": "Basic Data Structures and Object-Oriented Design",
+      "department": "CSE",
+      "units": "4",
+      "description": null,
+      "raw_prereq_text": "Prerequisites: CSE 11.",
+      "notes": null,
+      "prereq_groups": [
+        [
+          "CSE 11"
+        ]
+      ],
+      "prereq_slots": null,
+      "coreq_groups": [],
+      "recommended_groups": [
+        [
+          "MATH 20A"
+        ]
+      ],
+      "required_standing": null,
+      "restricted_to_majors": null
+    },
+    "CSE 20": {
+      "code": "CSE 20",
+      "title": "Discrete Mathematics",
+      "department": "CSE",
+      "units": "4",
+      "description": null,
+      "raw_prereq_text": "Prerequisites: CSE 11 or MATH 20A.",
+      "notes": null,
+      "prereq_groups": [
+        [
+          "CSE 11"
+        ],
+        [
+          "MATH 20A"
+        ]
+      ],
+      "prereq_slots": [
+        [
+          "CSE 11",
+          "MATH 20A"
+        ]
+      ],
+      "coreq_groups": [],
+      "recommended_groups": [],
+      "required_standing": null,
+      "restricted_to_majors": null
+    },
+    "CSE 100": {
+      "code": "CSE 100",
+      "title": "Advanced Data Structures",
+      "department": "CSE",
+      "units": "4",
+      "description": null,
+      "raw_prereq_text": "Prerequisites: CSE 12 and (CSE 20 or MATH 20C).",
+      "notes": "or consent of instructor",
+      "prereq_groups": [
+        [
+          "CSE 12",
+          "CSE 20"
+        ],
+        [
+          "CSE 12",
+          "MATH 20C"
+        ]
+      ],
+      "prereq_slots": [
+        [
+          "CSE 12"
+        ],
+        [
+          "CSE 20",
+          "MATH 20C"
+        ]
+      ],
+      "coreq_groups": [],
+      "recommended_groups": [],
+      "required_standing": "junior",
+      "restricted_to_majors": [
+        "CS25",
+        "CS26"
+      ]
+    }
+  },
+  "unlocks": {}
+}

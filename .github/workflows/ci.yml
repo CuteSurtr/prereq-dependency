@@ -43,3 +43,44 @@ jobs:
         run: npx playwright install --with-deps chromium
       - name: Playwright smoke
         run: npx playwright test
+
+  service:
+    name: spring-boot service
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: service
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: prereq_it
+          MYSQL_USER: prereq
+          MYSQL_PASSWORD: prereq
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -proot"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=20
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd="redis-cli ping"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+      # `test` runs on H2 with an in-process cache; `verify` adds the integration tests that need
+      # the MySQL and Redis services above.
+      - run: mvn -B verify

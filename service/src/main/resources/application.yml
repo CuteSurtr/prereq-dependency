@@ -1,0 +1,77 @@
+server:
+  port: ${SERVER_PORT:8080}
+  shutdown: graceful
+
+spring:
+  application:
+    name: prereq-service
+
+  datasource:
+    url: ${MYSQL_URL:jdbc:mysql://localhost:3306/prereq?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC&characterEncoding=utf8}
+    username: ${MYSQL_USER:prereq}
+    password: ${MYSQL_PASSWORD:prereq}
+    hikari:
+      maximum-pool-size: ${MYSQL_POOL_SIZE:10}
+      pool-name: prereq-pool
+
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        jdbc.batch_size: 200
+        order_inserts: true
+        order_updates: true
+
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      timeout: 2s
+
+  cache:
+    type: ${CACHE_TYPE:redis}
+
+  jackson:
+    property-naming-strategy: SNAKE_CASE
+    default-property-inclusion: always
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,caches
+  endpoint:
+    health:
+      show-details: when-authorized
+  health:
+    redis:
+      enabled: true
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+
+prereq:
+  cors:
+    allowed-origins: ${CORS_ORIGINS:http://localhost:5173,http://localhost:4173,https://cutesurtr.github.io}
+  cache:
+    key-prefix: prereq
+    default-ttl: PT1H
+    ttls:
+      courses: PT6H
+      course: PT6H
+      prereqs: PT6H
+      unlocks: PT6H
+      chain: PT1H
+      graph: PT6H
+      departments: PT12H
+  seed:
+    graph-json: ${GRAPH_JSON:../frontend/public/graph.json}
+    on-startup: ${IMPORT_ON_STARTUP:true}
+    force: ${IMPORT_FORCE:false}
