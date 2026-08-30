@@ -84,3 +84,37 @@ jobs:
       # `test` runs on H2 with an in-process cache; `verify` adds the integration tests that need
       # the MySQL and Redis services above.
       - run: mvn -B verify
+
+      - name: Coverage summary
+        if: always()
+        run: |
+          report=target/site/jacoco/jacoco.xml
+          if [ ! -f "$report" ]; then
+            echo "No JaCoCo report produced." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          python3 - "$report" >> "$GITHUB_STEP_SUMMARY" <<'PY'
+          import sys, xml.etree.ElementTree as ET
+          root = ET.parse(sys.argv[1]).getroot()
+          print("### Coverage\n")
+          print("| Metric | Covered | Missed | % |")
+          print("| --- | ---: | ---: | ---: |")
+          for c in root.findall("counter"):
+              t, cov, miss = c.get("type"), int(c.get("covered")), int(c.get("missed"))
+              total = cov + miss
+              pct = f"{100 * cov / total:.1f}" if total else "—"
+              print(f"| {t.title()} | {cov} | {miss} | {pct} |")
+          PY
+
+      # Uploaded unconditionally: a red build is exactly when these are worth reading.
+      - name: Upload test and coverage reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: service-reports
+          path: |
+            service/target/surefire-reports/
+            service/target/failsafe-reports/
+            service/target/site/jacoco/
+          if-no-files-found: warn
+          retention-days: 14

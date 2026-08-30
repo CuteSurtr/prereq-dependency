@@ -99,6 +99,46 @@
           </execution>
         </executions>
       </plugin>
+      <!--
+        Both agents append to one exec file, so the report covers the unit tests
+        (surefire, H2) and the integration tests (failsafe, real MySQL and Redis)
+        together. Reporting only for now: a threshold is worth setting once the
+        first CI run has said what the real number is.
+      -->
+      <plugin>
+        <groupId>org.jacoco</groupId>
+        <artifactId>jacoco-maven-plugin</artifactId>
+        <version>0.8.12</version>
+        <configuration>
+          <destFile>${project.build.directory}/jacoco.exec</destFile>
+          <dataFile>${project.build.directory}/jacoco.exec</dataFile>
+        </configuration>
+        <executions>
+          <execution>
+            <id>prepare-agent</id>
+            <goals>
+              <goal>prepare-agent</goal>
+            </goals>
+          </execution>
+          <execution>
+            <id>prepare-agent-integration</id>
+            <goals>
+              <goal>prepare-agent-integration</goal>
+            </goals>
+            <configuration>
+              <destFile>${project.build.directory}/jacoco.exec</destFile>
+              <append>true</append>
+            </configuration>
+          </execution>
+          <execution>
+            <id>report</id>
+            <phase>verify</phase>
+            <goals>
+              <goal>report</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
     </plugins>
   </build>
 </project>
