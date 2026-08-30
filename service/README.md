@@ -87,6 +87,84 @@ the graph.json parity check. `mvn verify` adds two suites against the real stack
 
 CI runs `mvn verify` with MySQL and Redis service containers.
 
+## Measured behaviour
+
+Every number here was measured by [`bench/bench.py`](bench/bench.py) against a local instance with
+the full graph loaded (2,147 courses, 5,004 prerequisite edges), not estimated. To reproduce:
+
+```bash
+docker compose up -d mysql redis
+./mvnw -DskipTests package && java -jar target/prereq-service-0.1.0.jar
+python bench/bench.py --experiment latency   # then queries, then index
+```
+
+Latency is read from Micrometer's `http.server.requests` rather than timed at the client. A request
+to `/actuator/health`, which does almost no work, costs about 25 ms measured from a Python client
+over Windows loopback — a floor larger than every difference reported below, so client-side numbers
+would be measuring the loopback rather than the service.
+
+### What the Redis cache buys
+
+Server-side mean per request, 200 iterations after 30 warm-up rounds.
+
+| endpoint | cache off | cache on | |
+| --- | ---: | ---: | ---: |
+| `/api/courses/{code}/chain` | 8.22 ms | 1.68 ms | 4.9x |
+| `/api/courses/{code}` | 4.57 ms | 1.37 ms | 3.3x |
+| `/api/courses` | 4.52 ms | 1.44 ms | 3.1x |
+| `/api/graph` | 29.20 ms | 15.57 ms | 1.9x |
+
+`/api/graph` gains least because its cost is serializing a 1.6 MB payload, which the cache does not
+remove — only the query behind it.
+
+### Chain traversal costs one query per level, not one per node
+
+`Com_select` delta across a single request, cache off:
+
+| course | depth | nodes returned | SELECTs | one query per node would be |
+| --- | ---: | ---: | ---: | ---: |
+| CSE 101 | 1 | 8 | 4 | 8 |
+| CSE 101 | 3 | 28 | 6 | 28 |
+| CSE 101 | 6 | 31 | 8 | 31 |
+| CSE 101 | 12 | 31 | 8 | 31 |
+| CSE 141 | 6 | 13 | 9 | 13 |
+| MATH 20C | 6 | 8 | 8 | 8 |
+
+The count tracks depth, not result size: CSE 101 at depth 6 walks 31 nodes in 8 SELECTs, and depth
+12 costs the same 8 because the frontier empties before the cap. Three of those are fixed — the
+existence check, the node hydration at the end, and one connection probe.
+
+### What the indexes actually do
+
+`EXPLAIN ANALYZE` on the query the traversal issues, best of 7 runs:
+
+| index | access | time |
+| --- | --- | ---: |
+| `ix_prereqs_course_code` (optimizer's choice) | range | 0.065 ms |
+| `ix_prereqs_course_type_group` (forced) | range | 0.081 ms |
+| none (both ignored) | full scan | 0.898 ms |
+
+Two findings, one good and one not:
+
+* Indexing this query is worth **13.8x** even at 5,004 rows.
+* **`ix_prereqs_course_type_group` is never chosen.** It is `(course_code, prereq_type, group_id)`,
+  and for a `course_code IN (...)` range the optimizer prefers the narrower single-column index;
+  forced, the wider one is 25% slower.
+
+It does not earn its keep on the ordered read either. `WHERE course_code = ? ORDER BY group_id, id`
+still picks `ix_prereqs_course_code` and adds a filesort, because `prereq_type` sits between the
+filtered column and the sorted one. Reordering the columns removes the filesort:
+
+| index | `Extra` | time |
+| --- | --- | ---: |
+| today's `(course_code, prereq_type, group_id)` | Using filesort | 0.0260 ms |
+| `(course_code, group_id, id)` | none | 0.0177 ms |
+
+`ix_prereqs_required_type` has the same shape: `findByRequiredCourseCodeAndPrereqTypeOrderByCourseCodeAsc`
+picks `ix_prereqs_required_course_code` and filesorts rather than using it. Both composite indexes
+cost write throughput and storage today without serving a read. Replacing them is a schema change,
+so it is recorded here rather than done quietly.
+
 ## Notes
 
 * `spring.jpa.open-in-view` is off; every read path is an explicit `@Transactional(readOnly = true)`

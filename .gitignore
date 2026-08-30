@@ -43,3 +43,6 @@ playwright/.cache/
 
 # Java service
 service/target/
+
+# Benchmark output
+service/bench/results/
