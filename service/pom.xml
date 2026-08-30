@@ -102,8 +102,8 @@
       <!--
         Both agents append to one exec file, so the report covers the unit tests
         (surefire, H2) and the integration tests (failsafe, real MySQL and Redis)
-        together. Reporting only for now: a threshold is worth setting once the
-        first CI run has said what the real number is.
+        together. The floors below sit just under the measured figures (line 91.4%,
+        branch 72.4%) — they exist to catch a regression, not to describe a target.
       -->
       <plugin>
         <groupId>org.jacoco</groupId>
@@ -136,6 +136,33 @@
             <goals>
               <goal>report</goal>
             </goals>
+          </execution>
+          <!-- Declared after `report` so it reads a report that already includes the ITs. -->
+          <execution>
+            <id>check</id>
+            <phase>verify</phase>
+            <goals>
+              <goal>check</goal>
+            </goals>
+            <configuration>
+              <rules>
+                <rule>
+                  <element>BUNDLE</element>
+                  <limits>
+                    <limit>
+                      <counter>LINE</counter>
+                      <value>COVEREDRATIO</value>
+                      <minimum>0.85</minimum>
+                    </limit>
+                    <limit>
+                      <counter>BRANCH</counter>
+                      <value>COVEREDRATIO</value>
+                      <minimum>0.65</minimum>
+                    </limit>
+                  </limits>
+                </rule>
+              </rules>
+            </configuration>
           </execution>
         </executions>
       </plugin>
