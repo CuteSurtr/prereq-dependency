@@ -79,11 +79,13 @@ mvn verify    # adds the *IT tests, which need MySQL and Redis up
 ```
 
 `mvn test` covers the parser-independent logic, the full HTTP surface via MockMvc, cache wiring, and
-the graph.json parity check. `mvn verify` adds two suites against the real stack:
+the graph.json parity check. `mvn verify` adds three suites against the real stack:
 
 * `MySqlStackIT` — runs with `ddl-auto: validate`, so the context only starts if the Flyway
   migration and the JPA entities still describe the same schema.
 * `RedisCacheIT` — round-trips records through a live Redis and checks key prefixes and TTLs.
+* `SeedConcurrencyIT` — eight threads released together on one barrier, asserting that exactly one
+  of them imports and that the lock is released only by whoever holds it.
 
 CI runs `mvn verify` with MySQL and Redis service containers.
 
@@ -164,6 +166,40 @@ filtered column and the sorted one. Reordering the columns removes the filesort:
 picks `ix_prereqs_required_course_code` and filesorts rather than using it. Both composite indexes
 cost write throughput and storage today without serving a read. Replacing them is a schema change,
 so it is recorded here rather than done quietly.
+
+### Seeding is coordinated, not repeated
+
+`GraphImportService.importFrom` decides whether to seed by reading the row count and then writing.
+That is safe in one process and wasteful in two: both read an empty table, both insert, and every
+loser hits the primary key. Measured with eight concurrent callers over ten trials, cache and
+database real:
+
+| | calls that succeeded | calls that failed | trials ending with wrong row count |
+| --- | ---: | ---: | ---: |
+| direct `importFrom` | 10 | **70** | 0 |
+| through `SeedCoordinator` | **80** | **0** | 0 |
+
+The failures were noisy, not corrupting — each import runs in its own transaction, so the losers
+rolled back and the table was correct after every trial. What was actually wrong is that seven of
+every eight instances logged a startup warning about a problem nobody had, after reading and
+re-inserting the whole graph to find out they were not needed.
+
+[`SeedCoordinator`](src/main/java/edu/ucsd/prereq/service/SeedCoordinator.java) takes a Redis lock
+(`SET key token NX PX`) before delegating, so the check and the claim are one command. Three
+decisions worth stating:
+
+* **A caller that cannot take the lock skips rather than waits.** Seeding means "make the table
+  populated", not "run exactly here"; blocking startup to watch another instance work would only
+  make the slowest instance slower.
+* **The lock is released by compare-and-delete, not `DEL`.** If a holder stalls past the TTL, Redis
+  drops the key and someone else takes it; a plain delete from the stalled holder would then release
+  a lock it no longer owns.
+* **The lock is taken outside the import transaction.** Releasing inside it would hand the lock on
+  before the winner's rows were committed, which is the same race in a smaller window.
+
+If Redis is unreachable the import proceeds unlocked with a warning. Redis is how instances agree,
+not how the import works, and a single-instance deployment should not fail to start because the
+coordination layer is down — the primary key is still there.
 
 ## Notes
 

@@ -12,11 +12,11 @@ import org.springframework.stereotype.Component;
 public class GraphSeedRunner implements ApplicationRunner {
     private static final Logger log = LoggerFactory.getLogger(GraphSeedRunner.class);
 
-    private final GraphImportService importer;
+    private final SeedCoordinator coordinator;
     private final PrereqProperties props;
 
-    public GraphSeedRunner(GraphImportService importer, PrereqProperties props) {
-        this.importer = importer;
+    public GraphSeedRunner(SeedCoordinator coordinator, PrereqProperties props) {
+        this.coordinator = coordinator;
         this.props = props;
     }
 
@@ -28,9 +28,13 @@ public class GraphSeedRunner implements ApplicationRunner {
         }
         Path path = Path.of(seed.graphJson());
         try {
-            GraphImportService.ImportStats stats = importer.importFrom(path, seed.force());
-            if (stats.skipped()) {
-                log.info("Courses already present; skipping seed from {}", path);
+            SeedCoordinator.Result result = coordinator.seedOnce(path, seed.force());
+            switch (result.outcome()) {
+                case ALREADY_POPULATED -> log.info("Courses already present; skipping seed from {}", path);
+                case SKIPPED_LOCK_HELD -> log.info("Seed skipped; another instance is importing");
+                case IMPORTED, RAN_UNLOCKED -> {
+                    // importFrom already logged the row counts.
+                }
             }
         } catch (Exception e) {
             log.warn("Could not seed from {}: {}", path.toAbsolutePath(), e.getMessage());

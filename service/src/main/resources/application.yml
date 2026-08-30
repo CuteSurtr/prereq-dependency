@@ -75,3 +75,4 @@ prereq:
     graph-json: ${GRAPH_JSON:../frontend/public/graph.json}
     on-startup: ${IMPORT_ON_STARTUP:true}
     force: ${IMPORT_FORCE:false}
+    lock-ttl: ${IMPORT_LOCK_TTL:PT2M}

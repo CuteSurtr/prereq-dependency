@@ -21,5 +21,8 @@ public record PrereqProperties(
     public record Seed(
             String graphJson,
             @DefaultValue("true") boolean onStartup,
-            @DefaultValue("false") boolean force) {}
+            @DefaultValue("false") boolean force,
+            // Long enough to cover a full import of the real graph, which takes about seven
+            // seconds; short enough that a crashed instance does not park the lock for a shift.
+            @DefaultValue("PT2M") Duration lockTtl) {}
 }
