@@ -82,8 +82,9 @@ jobs:
           java-version: "21"
           cache: maven
       # `test` runs on H2 with an in-process cache; `verify` adds the integration tests that need
-      # the MySQL and Redis services above.
-      - run: mvn -B verify
+      # the MySQL and Redis services above. The wrapper pins Maven itself, so the runner's
+      # bundled version cannot drift away from what a contributor builds with locally.
+      - run: ./mvnw -B verify
 
       - name: Coverage summary
         if: always()
